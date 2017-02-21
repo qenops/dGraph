@@ -1,36 +1,28 @@
 #!/usr/bin/python
-'''A simple openGL based stereo renderer
+'''Test for an openGL based stereo renderer
 
 David Dunn
 July 2015 - created
+Jan 2017 - transition to GLFW
 
 www.qenops.com
 
 '''
 __author__ = ('David Dunn')
-__version__ = '0.1'
+__version__ = '1.0'
 
-import sys
-sys.path.append(u'../')
+import glfw
 import OpenGL
 OpenGL.ERROR_CHECKING = False      # Uncomment for 2x speed up
 OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-#import OpenGL.GLU as GLU
-import OpenGL.GLUT as GLUT
-from OpenGL.GL import shaders
+import cv2
 import numpy as np
 import dGraph as dg
-from dGraph import shaders as dgs
-from dGraph import textures as dgt
-from dGraph import imageManip as im
-import dDisplay as disp
-from time import time
-import cv2
 
-modelDir = './objs'
+modelDir = './data'
 
 def loadCrosses(file=None):                
     '''Load or create our sceneGraph'''
@@ -370,7 +362,7 @@ def writeImages(buffer):
     cv2.imshow('Left output-%s.png'%buffer,left)
     cv2.waitKey()
 
-if __name__ == '__main__':
+def runTest():
     display = disp.Display()
     renderStack = []
     cameras = []
@@ -411,3 +403,6 @@ if __name__ == '__main__':
     #cv2.waitKey()
     # Start Event Processing Engine 
     GLUT.glutMainLoop()
+
+if __name__ == '__main__':
+    runTest()

@@ -74,15 +74,37 @@ def prepareImage(image):
     img = np.flipud(img)
     format = glChannelsFormat[channels]
     type = glNumpyToType[img.dtype.type]
-    return img, iy, ix, channels, format, type
+    # This is ugly (using exec) but I can't figure another way to do it
+    mod = ''
+    if 'float' in img.dtype.name:
+        mod = 'F'
+    #elif 'u' in img.dtype.name:
+    #    mod = 'UI'
+    tempISF = '%s%s%s'%(str(format).split()[0],st.strToInt(img.dtype.name),mod)
+    exec('internalSizedFormat = %s'%tempISF) 
+    return img, iy, ix, channels, format, type, internalSizedFormat
 
-def createTexture(image):
-    img, iy, ix, channels, format, type = prepareImage(image)
+def createTexture(image, numMipmaps=1):
+    img, height, width, channels, format, type, isf = prepareImage(image)
+    print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
     texture = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture)
-    glTexImage2D(GL_TEXTURE_2D, 0, format, ix, iy, 0, format, type, img)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    #glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, img)
+    glTexStorage2D(GL_TEXTURE_2D, numMipmaps, isf, width, height)
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+    if numMipmaps < 1:
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+    else:
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+    # we should do some verification if the texture is as it should be
+    # glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT)
+    # int(GL_RGBA)
+    # glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_TYPE)
+    # int(GL_UNSIGNED_NORMALIZED)
+    # glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_SIZE)
     glBindTexture(GL_TEXTURE_2D, 0)
     return texture
 
