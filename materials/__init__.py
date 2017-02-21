@@ -18,7 +18,9 @@ __all__ = ["Material", "Lambert", "Blinn", "Reflective"]
 import numpy as np
 import OpenGL.GL as GL
 from OpenGL.GL import shaders
-import ctypes
+from math import sqrt
+from numpy.linalg import norm
+from numpy import dot, vdot
 #import cv2
 
 _shaderHeader = '''

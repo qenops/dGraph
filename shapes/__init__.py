@@ -17,6 +17,10 @@ __all__ = ["Shape", "PolySurface"]
 from dGraph import *
 import dGraph.materials as dgm
 from dGraph.io import obj
+from math import sin, cos, pi
+import numpy as np
+from numpy.linalg import norm
+from numpy import dot, cross, matlib
 
 class Shape(WorldObject):
     ''' Any world object that has a renderable surface

@@ -4,7 +4,7 @@
 David Dunn
 Jan 2017 - created by splitting off from dGraph
 
-ALL UNITS ARE IN METERS 
+ALL UNITS ARE IN METRIC 
     ie 1 cm = .01
 
 www.qenops.com
@@ -15,6 +15,8 @@ __version__ = '1.6'
 __all__ = ["Light", "PointLight", "DirectionLight"]
 
 from dGraph import *
+import numpy as np
+from numpy.linalg import norm
 
 class Light(WorldObject):
     ''' A world object that casts light 

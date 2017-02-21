@@ -16,6 +16,10 @@ __all__ = ["ImplicitSurface", "Sphere", "Plane"]
 
 #from dGraph import *
 from dGraph.shapes import Shape
+from math import sqrt
+import numpy as np
+from numpy.linalg import norm
+from numpy import dot
 
 class ImplicitSurface(Shape):
     ''' Any surface object whose surface is defined by a mathematical function
