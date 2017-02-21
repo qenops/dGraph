@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 '''A library of materials classes to create shaders for rendering surfaces
 
 David Dunn
@@ -267,3 +267,4 @@ class Reflective(Blinn):
         color = ray.render(world)
         reflectDepth -= 1
         return (self._reflectance*color)+((1.0-self._reflectance)*super(Reflective, self).render(point,normal,viewVector))   # add weighted reflected and weighted blinn together
+

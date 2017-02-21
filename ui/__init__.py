@@ -1,178 +1,112 @@
 #!/usr/bin/env python
-'''A library of texture methods and utilities for managing textures for openGL rendering
+'''User interface submodule for dGraph scene description module based on glfw
 
 David Dunn
-Jan 2017 - Created
+Feb 2017 - created
+
+ALL UNITS ARE IN METRIC 
+    ie 1 cm = .01
 
 www.qenops.com
 
 '''
 __author__ = ('David Dunn')
-__version__ = '1.0'
+__version__ = '1.6'
+__all__ = []
 
-import numpy as np
+WINDOWSTACKS = {}       # Each window can have 1 associated renderStack
+WINDOWS = []
 import OpenGL.GL as GL
-from OpenGL.GL import shaders
-from OpenGL.GL import *
-import cv2
-import os
-import dGraph.util.imageManip as dgim
+import dglfw as fw
+from dglfw import *
 
-# Get numchannels from format:
-glFormatChannels={GL_STENCIL_INDEX:1, GL_DEPTH_COMPONENT:1, GL_DEPTH_STENCIL:1, GL_RED:1, GL_GREEN:1, GL_BLUE:1, GL_RGB:3, GL_BGR:3, GL_RGBA:4, GL_BGRA:4}
-# Get format from numchanels:
-glChannelsFormat={1:GL_LUMINANCE, 2:GL_LUMINANCE_ALPHA, 3:GL_RGB, 4:GL_RGBA}
-# Get numpy dtype from gltype:
-glTypeToNumpy={
-    GL_UNSIGNED_BYTE:np.uint8,
-    GL_BYTE:np.int8,
-    GL_UNSIGNED_SHORT:np.uint16,
-    GL_SHORT:np.int16,
-    GL_UNSIGNED_INT:np.uint32,
-    GL_INT:np.int32,
-    #GL_HALF_FLOAT,
-    GL_FLOAT:np.float32,
-    #GL_UNSIGNED_BYTE_3_3_2,
-    #GL_UNSIGNED_BYTE_2_3_3_REV,
-    #GL_UNSIGNED_SHORT_5_6_5,
-    #GL_UNSIGNED_SHORT_5_6_5_REV,
-    #GL_UNSIGNED_SHORT_4_4_4_4,
-    #GL_UNSIGNED_SHORT_4_4_4_4_REV,
-    #GL_UNSIGNED_SHORT_5_5_5_1,
-    #GL_UNSIGNED_SHORT_1_5_5_5_REV,
-    #GL_UNSIGNED_INT_8_8_8_8,
-    #GL_UNSIGNED_INT_8_8_8_8_REV,
-    #GL_UNSIGNED_INT_10_10_10_2,
-    #GL_UNSIGNED_INT_2_10_10_10_REV,
-    #GL_UNSIGNED_INT_24_8,
-    #GL_UNSIGNED_INT_10F_11F_11F_REV,
-    #GL_UNSIGNED_INT_5_9_9_9_REV,
-    #GL_FLOAT_32_UNSIGNED_INT_24_8_REV,
-}
-# Get gltype from numpy dtype:
-glNumpyToType={
-    np.uint8:GL_UNSIGNED_BYTE,
-    np.int8:GL_BYTE,
-    np.uint16:GL_UNSIGNED_SHORT,
-    np.int16:GL_SHORT,
-    np.uint32:GL_UNSIGNED_INT,
-    np.int32:GL_INT,
-    np.float32:GL_FLOAT,
-}
-def prepareImage(image):
-    iy, ix, channels = image.shape if len(image.shape)>2 else [image.shape[0], image.shape[1], 1]
-    img = image
-    #if channels == 1:
-    #    img = cv2.cvtColor(cv2.cvtColor(image,cv2.COLOR_GRAY2RGB),cv2.COLOR_RGB2RGBA)
-    #    channels = 4
-    if channels == 4:
-        if image.dtype.type == np.float64:  # if they are float64, they were loaded as numpy arrays, so don't swap channels
-            img = image.astype(np.float32)
-        else:
-            img = cv2.cvtColor(image,cv2.COLOR_BGRA2RGBA)
-    elif channels == 3:  # Nvidia cards having trouble with 3 channel images, so convert it to 4
-        if image.dtype.type == np.float64:  # if they are float64, they were loaded as numpy arrays, so don't swap channels
-            img = cv2.cvtColor(image.astype(np.float32),cv2.COLOR_RGB2RGBA)
-        else:
-            img = cv2.cvtColor(image,cv2.COLOR_BGR2RGBA)
-        channels = 4
-    img = np.flipud(img)
-    format = glChannelsFormat[channels]
-    type = glNumpyToType[img.dtype.type]
-    # This is ugly (using exec) but I can't figure another way to do it
-    formatBase = str(format).split()[0]
-    mod = ''
-    if 'float' in img.dtype.name:
-        mod = 'F'
-        if channels == 1:
-            formatBase = 'GL_R'
-    #elif 'u' in img.dtype.name:
-    #    mod = 'UI'
-    tempISF = '%s%s%s'%(formatBase,dgim.strToInt(img.dtype.name),mod)
-    exec('internalSizedFormat = %s'%tempISF) 
-    return img, iy, ix, channels, format, type, internalSizedFormat
+class RenderStack(list):
+    '''An object representing a renderable view of the scene graph
+    self - the renderStack
+    _objects - list of objects in the view
+    _cameras - list of cameras in the view
+    _display - what display the view is rendered for
+    _window - the window containing the OpenGL context for the view
+    _width, _height - width and height of the view
+    '''
+    def __init__(self, *args, **kwargs):
+        super(RenderStack,self).__init__(*args, **kwargs)
+        self._windows = []      # a renderStack can be displayed in multiple windows   
+        self._width = None
+        self._height = None
+        self.cameras = []       # just for convinience if wanted
+        self.objects = {}       # just for convinience if wanted
+        self.displays = []      # just for convinience if wanted
+    @property
+    def width(self):
+        if self._width is None:
+            self.calcSize()
+        return self._width
+    @property
+    def height(self):
+        if self._height is None:
+            self.calcSize()
+        return self._height
+    def calcSize(self):
+        width, height = (0,0)
+        for win in self._windows:
+            w,h = fw.get_window_size(win)
+            width = max(width, w)
+            height = max(height, h)
+        self._width = None if width == 0 else width
+        self._height = None if height == 0 else height 
+    @property
+    def windows(self):
+        return list(self._windows)
+    def addWindow(self, window):
+        self._windows.append(window)
+        id = get_window_id(window)
+        other = WINDOWSTACKS.get(id,None)
+        if other is not None:
+            other.removeWindow(window)
+        WINDOWSTACKS[id] = self
+        return window
+    def removeWindow(self, window):
+        self._windows.remove(window)
+        id = get_window_id(window)
+        WINDOWSTACKS.pop(id)
 
-def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=GL_LINEAR_MIPMAP_LINEAR):
-    img, height, width, channels, format, type, isf = prepareImage(image)
-    print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
-    texture = glGenTextures(1)
-    glBindTexture(GL_TEXTURE_2D, texture)
-    #glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, img)
-    glTexStorage2D(GL_TEXTURE_2D, numMipmaps, isf, width, height)
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
-    if numMipmaps < 1:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipfilter)
-    else:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
-    # we should do some verification if the texture is as it should be
-    #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT)
-    #int(GL_RGBA)
-    #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_TYPE)
-    #int(GL_UNSIGNED_NORMALIZED)
-    #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_SIZE)
-    glBindTexture(GL_TEXTURE_2D, 0)
-    return texture
+    def graphicsCardInit(self):
+        ''' compile shaders and create VBOs and such '''
+        sceneGraphSet = set()
+        for node in self:
+            sceneGraphSet.update(node.setup(self.width, self.height))
+        for sceneGraph in sceneGraphSet:
+            for obj in sceneGraph:                                                      # convert the renderable objects in the scene
+                if obj.renderable:
+                    print obj.name
+                    obj.generateVBO()
 
-def updateTexture(texture, image):
-    img, height, width, channels, format, type, isf = prepareImage(image)
-    glBindTexture(GL_TEXTURE_2D, texture)
-    # we should do some verification if the texture is as it should be
-    #width = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH)
-    #height = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT)
-    #texFormat = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT)
-    #texType = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_RED_TYPE)
-    #if ix == width and iy == height and format == texFormat and type == texType:
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
-    #else:
-    #   pass
-    glBindTexture(GL_TEXTURE_2D, 0)
+def resize_window_callback(window, w, h):
+    '''Need to figure out how to track this
+    what is rederStack -> window relationship??? '''
+    renderStack = WINDOWSTACKS[window]
+    width = w if w > 1 else 2
+    height = h if h > 1 else 2
+    renderStack._width = None
+    renderStack._height = None
+    for cam in cameras:
+        cam.setResolution((width/2, height))  # for binocular ???
+    for node in renderStack:
+        node.setup(renderStack.width, renderStack.height)
 
-def attachTexture(texture, shader, index):
-    GL.glActiveTexture(getattr(GL,'GL_TEXTURE%s'%index))                    # make texture register idx active
-    GL.glBindTexture(GL.GL_TEXTURE_2D, texture)                             # bind texture to register idx
-    texLoc = GL.glGetUniformLocation(shader, "tex%s"%index)                 # get location of our texture
-    GL.glUniform1i(texLoc, index)                                           # connect location to register idx
+def get_window_id(window):
+    try:
+        id = WINDOWS.index(window)
+    except ValueError:
+        id = len(WINDOWS)
+        WINDOWS.append(window)
+    return id
 
-def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filter=GL_LINEAR):
-    texture = glGenTextures(1)                           # setup our texture
-    glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, type, None)   # Allocate memory
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
-    # setup frame buffer
-    frameBuffer = glGenFramebuffers(1)                                                                  # Create frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                   # Bind our frame buffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)        # Attach texture to frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0)
-    glBindTexture(GL_TEXTURE_2D, 0)
-    return texture, (frameBuffer,width,height)
-
-def readFramebuffer(x, y, width, height, format, gltype=GL.GL_UNSIGNED_BYTE):
-    '''Get pixel values from framebuffer to numpy array'''
-    stringArry = GL.glReadPixels(x,y,width,height,format,gltype)        # read the buffer
-    arry = np.fromstring(stringArry,glTypeToNumpy[gltype])              # convert back to numbers
-    arry = np.reshape(arry,(height,width,glFormatChannels[format]))     # reshape our array to right dimensions
-    arry = np.flipud(arry)                                              # openGL and openCV start images at bottom and top respectively, so flip it
-    if glFormatChannels[format] > 2:                                    # swap red and blue channel
-        temp = np.zeros_like(arry)
-        np.copyto(temp, arry)
-        temp[:,:,0] = arry[:,:,2]
-        temp[:,:,2] = arry[:,:,0]
-        arry=temp
-    return arry
-
-def loadImage(imgFile):
-    ''' Load an image from a file '''
-    filename, extension = os.path.splitext(imgFile)
-    if extension == '.npy':
-        image = np.load(imgFile)
-    elif extension == '.png':
-        image = cv2.imread(imgFile, -1)
-    else:
-        raise ValueError('File type unknown')
-    return image
+def close_window(window):
+    id = get_window_id(window)
+    rs = WINDOWSTACKS.get(id, None)
+    if rs is not None:
+        rs.removeWindow(window)
+    WINDOWS[id] = None
+    fw.set_window_should_close(window, True)

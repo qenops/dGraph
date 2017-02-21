@@ -262,3 +262,4 @@ class PolySurface(Shape):
         verts = np.matrix(verts,dtype=np.float32)
         faces = np.matrix(faces,dtype=np.uint32)
         return cls(name, parent=parent, verts=verts, normals=verts, faces=faces, faceNormals=faces, faceSizes=faceSizes)
+
