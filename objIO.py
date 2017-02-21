@@ -11,7 +11,7 @@ David Dunn
 Sept 2014 - Created
 www.qenops.com
 
-http://paulbourke.net/dataformats/obj/:
+http://paulbourke.net/dataformats/obj/
 
 The following types of data may be included in an .obj file. In this list, the keyword (in parentheses) follows the data type.
 
