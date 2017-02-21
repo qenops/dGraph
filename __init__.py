@@ -339,18 +339,6 @@ class WorldObject(object):
         #self._max = (xMax, yMax, zMax)
         pass
 
-
-def graphicsCardInit(renderStack, width, height):
-    ''' compile shaders and create VBOs and such '''
-    sceneGraphSet = set()
-    for node in renderStack:
-        sceneGraphSet.update(node.setup(width, height))
-    for sceneGraph in sceneGraphSet:
-        for obj in sceneGraph:                                                      # convert the renderable objects in the scene
-            if obj.renderable:
-                print obj.name
-                obj.generateVBO()
-
 def initGL():
     GL.glEnable(GL.GL_CULL_FACE)
     GL.glEnable(GL.GL_DEPTH_TEST)

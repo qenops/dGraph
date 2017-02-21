@@ -21,6 +21,7 @@ import OpenGL.GL as GL
 import cv2
 import numpy as np
 import dGraph as dg
+import dDisplay as dd
 
 modelDir = './data'
 
@@ -205,15 +206,6 @@ def writeImages(buffer):
 def DrawGLScene():
     ''' Draw everything in stereo '''
     global renderStack, frameCount, cameras, width, height
-    # Get Window Dimensions
-    #w = GLUT.glutGet(GLUT.GLUT_WINDOW_WIDTH)
-    #h = GLUT.glutGet(GLUT.GLUT_WINDOW_HEIGHT)
-    #if w != width or h != height:
-    #    width = w
-    #    height = h
-    #    for cam in cameras:
-    #        cam.setResolution((width/2, height))
-    #    # should probably update warp texture subimage size here
     myStack = list(renderStack)                                     # copy the renderStack so we can pop and do it again next frame
     #myStack = renderStack
     temp = myStack.pop()
@@ -249,7 +241,7 @@ def DrawGLScene():
     
 
 def runTest():
-    display = disp.Display()
+    display = dd.Display()
     renderStack = []
     cameras = []
     objects = {}
@@ -260,10 +252,10 @@ def runTest():
     # Print message to console, and kick off the main to get it rolling.
     print("Hit ESC key to quit.")
     # pass arguments to init
-    
+    fw.init()
     loadScene()
     #loadCrosses()
-    initGL()
+    dg.initGL()
     # Timing code
     #frameCount = 0
     #startTime = time()
