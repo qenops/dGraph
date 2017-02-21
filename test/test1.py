@@ -11,7 +11,7 @@ www.qenops.com
 __author__ = ('David Dunn')
 __version__ = '1.0'
 
-import glfw
+import dglfw as fw
 import OpenGL
 OpenGL.ERROR_CHECKING = False      # Uncomment for 2x speed up
 OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
@@ -57,12 +57,11 @@ def loadCrosses(file=None):
         cross.setMaterial(material)
     cameras = [stereoCam]
     renderStack.append(stereoCam)
-    graphicsCardInit()
+    dg.graphicsCardInit(renderStack, width, height)
     return True 
 
 def loadImageFlip():
     global renderStack, cameras, objects, display
-
 
 def loadScene(file=None):                
     '''Load or create our sceneGraph'''
@@ -137,167 +136,8 @@ def loadScene(file=None):
     #warp = dgs.Lookup('lookup', 'warpWorking.png')
     #renderStack.append(warp)
 
-    graphicsCardInit()
+    dg.graphicsCardInit(renderStack, width, height)
     return True                                                         # Initialization Successful
-
-def graphicsCardInit():
-    ''' compile shaders and create VBOs and such '''
-    global renderStack, width, height
-    sceneGraphSet = set()
-    for node in renderStack:
-        sceneGraphSet.update(node.setup(width, height))
-    for sceneGraph in sceneGraphSet:
-        for obj in sceneGraph:                                                      # convert the renderable objects in the scene
-            if obj.renderable:
-                print obj.name
-                obj.generateVBO()
-
-def initGL():
-    GL.glEnable(GL.GL_CULL_FACE)
-    GL.glEnable(GL.GL_DEPTH_TEST)
-    GL.glDepthFunc(GL.GL_GREATER)
-    GL.glDepthRange(0,1)
-    GL.glClearDepth(0)
-    GL.glClearColor(0, 0, 0, 0)
-
-    #GL.glEnable(GL.GL_TEXTURE_2D)                                      # Not needed for shaders?
-    #GL.glEnable(GL.GL_NORMALIZE)                                       # Enable normal normalization
-
-def resizeWindow(w, h):
-    global renderStack, cameras, width, height
-    width = w if w > 1 else 2
-    height = h if h > 1 else 2
-    for cam in cameras:
-        cam.setResolution((width/2, height))
-    for node in renderStack:
-        node.setup(width, height)
-    
-def DrawGLScene():
-    ''' Draw everything in stereo '''
-    global renderStack, frameCount, cameras, width, height
-    # Get Window Dimensions
-    #w = GLUT.glutGet(GLUT.GLUT_WINDOW_WIDTH)
-    #h = GLUT.glutGet(GLUT.GLUT_WINDOW_HEIGHT)
-    #if w != width or h != height:
-    #    width = w
-    #    height = h
-    #    for cam in cameras:
-    #        cam.setResolution((width/2, height))
-    #    # should probably update warp texture subimage size here
-    myStack = list(renderStack)                                     # copy the renderStack so we can pop and do it again next frame
-    #myStack = renderStack
-    temp = myStack.pop()
-    temp.render(width, height, myStack)                    # Render our warp to screen
-    #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
-    #data = np.reshape(data,(height,width,3))
-    #cv2.imshow('%s:%s'%('final frame',temp._name),data)
-    #cv2.waitKey()
-    #GLUT.glutPostRedisplay()
-    GLUT.glutSwapBuffers()
-    
-    #for cam in cameras:
-    #    cam.far = frameCount % 1000
-    '''
-    for obj in objects.itervalues():
-        obj.rotate += (0.,2.,0.)
-    
-    # Write out our animation
-    image = dgt.readFramebuffer(0,0,width,height,GL.GL_RGB)
-    # split left and right eye
-    left = image[:,:width/2]
-    right = image[:,width/2:]
-    cv2.imwrite('./Renders/%04d_left.png'%frameCount, left)
-    cv2.imwrite('./Renders/%04d_right.png'%frameCount, right)
-    if frameCount >= 180:
-        sys.exit ()
-    '''
-    # Timing code
-    endTime = time()
-    frameCount+=1
-    elapsed = endTime-startTime
-    fps = frameCount / elapsed
-    GLUT.glutSetWindowTitle("Binocular Depth Fusion: %0.2f FPS"%fps);
-
-
-# The function called whenever a key is pressed. Tuples to pass in: (key, x, y)  
-def keyPressed(*args):
-    ''' Directory of key presses:
-    Camera Motions:
-        Translate:  w = up
-                    s = down
-                    a = left
-                    d = right
-        Rotate:     i = -z
-                    k = +z
-                    j = -x
-                    l = +x
-        IPD:        z = increase IPD
-                    x = decrease IPD
-        Output:     p = Print camera info
-    Deconvolution:
-        Noise to Signal Ratio:  [ = decrease nsr
-                                ] = increase nsr
-        Aperture size:          - = smaller
-                                = = bigger
-    Write Images (three buffers for each):
-        Standard Blur (What you see is what you get):   [0-3]
-        Deconvolution Blur:                             [4-6]
-        Band Stop Filter:                               [7-9]
-    '''
-    global cameras, objects, nsr, aperture
-    translate = np.array((0.,0.,0.))
-    rotate = np.array((0.,0.,0.))
-    ipd = 0
-    ESCAPE = '\033'
-    # If escape is pressed, kill everything.
-    if args[0] == ESCAPE:
-        sys.exit ()
-    if args[0] == 'w':
-        translate -= np.array((0.,0.,0.1))
-    if args[0] == 's':
-        translate += np.array((0.,0.,0.1))
-    if args[0] == 'a':
-        translate -= np.array((0.005,0.,0.))
-    if args[0] == 'd':
-        translate += np.array((0.005,0.,0.))
-    if args[0] == 'i':
-        rotate -= np.array((0.,5.,0.))
-    if args[0] == 'k':
-        rotate += np.array((0.,5.,0.))
-    if args[0] == 'j':
-        rotate -= np.array((5.,0.,0.))
-    if args[0] == 'l':
-        rotate += np.array((5.,0.,0.))
-    if args[0] == 't':
-        objects['teapot'].translate -= np.array((0.,0.,0.1))
-    if args[0] == 'g':
-        objects['teapot'].translate += np.array((0.,0.,0.1))
-    if args[0] == 'z':
-        ipd += 0.005
-    if args[0] == 'x':
-        ipd -= 0.005
-    if args[0] == '[':
-        nsr *= 0.75
-    if args[0] == ']':
-        nsr *= 4/3.
-    if args[0] == '-':
-        aperture -= 0.001
-    if args[0] == '=':
-        aperture += 0.001
-    if args[0] == 'p':
-        print('Translate = %s'%cameras[0].translate)
-        print('Rotate = %s'%cameras[0].rotate)
-        print('IPD = %s'%cameras[0].IPD)
-        print('nsr = %s'%nsr)
-        print('aperture = %s'%aperture)
-    for cam in cameras:
-        cam.IPD += ipd
-    for name, obj in objects.iteritems():
-        obj.translate += translate
-        obj.rotate += rotate
-    if isinstance(args[0], basestring) and args[0].isdigit():
-        writeImages(int(args[0]))
-    return
 
 def writeImages(buffer):
     '''Write Images (three buffers for each):
@@ -361,6 +201,52 @@ def writeImages(buffer):
     print("Wrote files to output-%s.png"%buffer)
     cv2.imshow('Left output-%s.png'%buffer,left)
     cv2.waitKey()
+    
+def DrawGLScene():
+    ''' Draw everything in stereo '''
+    global renderStack, frameCount, cameras, width, height
+    # Get Window Dimensions
+    #w = GLUT.glutGet(GLUT.GLUT_WINDOW_WIDTH)
+    #h = GLUT.glutGet(GLUT.GLUT_WINDOW_HEIGHT)
+    #if w != width or h != height:
+    #    width = w
+    #    height = h
+    #    for cam in cameras:
+    #        cam.setResolution((width/2, height))
+    #    # should probably update warp texture subimage size here
+    myStack = list(renderStack)                                     # copy the renderStack so we can pop and do it again next frame
+    #myStack = renderStack
+    temp = myStack.pop()
+    temp.render(width, height, myStack)                    # Render our warp to screen
+    #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
+    #data = np.reshape(data,(height,width,3))
+    #cv2.imshow('%s:%s'%('final frame',temp._name),data)
+    #cv2.waitKey()
+    #GLUT.glutPostRedisplay()
+    GLUT.glutSwapBuffers()
+    
+    #for cam in cameras:
+    #    cam.far = frameCount % 1000
+    '''
+    for obj in objects.itervalues():
+        obj.rotate += (0.,2.,0.)
+    
+    # Write out our animation
+    image = dgt.readFramebuffer(0,0,width,height,GL.GL_RGB)
+    # split left and right eye
+    left = image[:,:width/2]
+    right = image[:,width/2:]
+    cv2.imwrite('./Renders/%04d_left.png'%frameCount, left)
+    cv2.imwrite('./Renders/%04d_right.png'%frameCount, right)
+    if frameCount >= 180:
+        sys.exit ()
+    '''
+    # Timing code
+    #endTime = time()
+    #frameCount+=1
+    #elapsed = endTime-startTime
+    #fps = frameCount / elapsed
+    
 
 def runTest():
     display = disp.Display()
@@ -374,35 +260,20 @@ def runTest():
     # Print message to console, and kick off the main to get it rolling.
     print("Hit ESC key to quit.")
     # pass arguments to init
-    GLUT.glutInit(sys.argv)
-    #GLUT.glutInitDisplayMode(GLUT.GLUT_RGB | GLUT.GLUT_DOUBLE | GLUT.GLUT_DEPTH)
-    GLUT.glutInitDisplayMode(GLUT.GLUT_RGBA | GLUT.GLUT_DOUBLE | GLUT.GLUT_ALPHA | GLUT.GLUT_DEPTH)
-    GLUT.glutInitWindowSize(width, height)
-    # the window starts at the upper left corner of the screen 
-    GLUT.glutInitWindowPosition(0, 0)
-    window = GLUT.glutCreateWindow(winName)
-    GLUT.glutDisplayFunc(DrawGLScene)
-    # Uncomment this line to get full screen.
-    #glutFullScreen()
-    # When we are doing nothing, redraw the scene.
-    GLUT.glutIdleFunc(DrawGLScene)
-    GLUT.glutReshapeFunc(resizeWindow)
-    GLUT.glutKeyboardFunc(keyPressed)
-    GLUT.glutSpecialFunc(keyPressed)
+    
     loadScene()
     #loadCrosses()
     initGL()
     # Timing code
-    frameCount = 0
-    startTime = time()
+    #frameCount = 0
+    #startTime = time()
     # do a raster by hand verification
     #frame, depth = cameras[0].raster(1)
     #cv2.namedWindow(winName)
     #cv2.imshow(winName, frame)
     #cv2.imshow('%s Depth'%winName, depth)
     #cv2.waitKey()
-    # Start Event Processing Engine 
-    GLUT.glutMainLoop()
+
 
 if __name__ == '__main__':
     runTest()

@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env python
-'''A library of graphics classes for defining a scene graph
+'''A library of graphics classes for defining a scene graph by using render stacks
 
 David Dunn
 Sept 2014 - Created
