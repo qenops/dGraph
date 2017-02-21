@@ -1,9 +1,10 @@
-﻿#!/usr/bin/python
+﻿﻿#!/usr/bin/python
  
 __author__ = ('David Dunn')
 __version__ = '0.1'
 
 import cv2, os, math, sys
+sys.path.append(u'C:/Users/qenops/Dropbox/code/python')
 import numpy as np
 
 # All measurements are in meters
@@ -11,26 +12,36 @@ import numpy as np
 #pixelDiameter = .000333333333  # (3 dpmm)
 #pixelDiameter = .0001  # (10 dpmm)
 
-class Display(object):
-    ''' A class that devines the physical properties of a display '''
-    def __init__(self, resolution=(1080,1920), size=(.071,.126), bezel=(.005245,.01)):  # default to note 3
-        self.resolution = resolution
-        self.size = size
-        self.bezel = bezel
-    def pixelSize(self):
-        return (self.size[0]/self.resolution[0], self.size[1]/self.resolution[1])
-
-# Draw a string (from cv2 example common.py)
-def drawStr(dst, point, s):
+# Draw a string on an image (from cv2 example common.py)
+def drawStr(dst, point, s, scale=1.0,thick=1):
     x,y = point
-    cv2.putText(dst, s, (x+1, y+1), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 0), thickness = 2, lineType=cv2.CV_AA)
-    cv2.putText(dst, s, (x, y), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), lineType=cv2.CV_AA)
+    cv2.putText(dst, s, (x+1, y+1), cv2.FONT_HERSHEY_PLAIN, scale, (0, 0, 0), thickness = thick*2, lineType=cv2.CV_AA)
+    cv2.putText(dst, s, (x, y), cv2.FONT_HERSHEY_PLAIN, scale, (255, 255, 255),thickness = thick, lineType=cv2.CV_AA)
 
 # Convert a string to a number - only good for 1 number per string (otherwise use regex)
 def strToNum(x):
     return int(''.join(ele for ele in x if ele.isdigit()))
 
-# Get the scale factor for normalization for np dtypes 
+def imgToHex(img,fill=2):
+    return '\n'.join(['\n'.join([''.join([np.base_repr(i,16).zfill(fill) for i in j]) for j in k]) for k in img])
+
+def fileListToHex(dir,lst):
+    myString = ''
+    for f in lst:
+        img = cv2.cvtColor(cv2.imread(os.path.join(dir,f)),cv2.COLOR_BGR2RGB)
+        myString += '%s\n'%imgToHex(img/16,1)
+    return myString
+
+def bitmapToImage(myMap,tiles):
+    output = None
+    for row in myMap:
+        curRow = None
+        for i in row:
+            curRow = np.hstack((curRow,tiles[i])) if curRow is not None else tiles[i]
+        output = np.vstack((output, curRow)) if output is not None else curRow
+    return output
+
+# Get the scale factor for normalization for numpy dtypes 
 def getBitDepthScaleFactor(typeName):
     if typeName[:4] == 'uint':
         return 2**strToNum(typeName)-1
@@ -91,25 +102,45 @@ def cropImg(img, refDim):
         toRet[round(refDim[0]/2)-xMinH:round(refDim[0]/2)+xMin-xMinH,round(refDim[1]/2)-yMinH:round(refDim[1]/2)+yMin-yMinH] = img[round(size[0]/2)-xMinH:round(size[0]/2)+xMin-xMinH,round(size[1]/2)-yMinH:round(size[1]/2)+yMin-yMinH]
         return toRet
 
-# Given a set of pixel dimensions, scale the image as it would appear if moved from the refDist to the imgDist, and add a buffer to the border
-def scaleImgDist(refDist, imgDist, img, refDim, bufferFactor):
+# Scale the image as it would appear if moved from the refDist to the imgDist, extend the image by buffer when we scale before we crop
+def scaleImgDist(refDist, imgDist, img, refDim, bufferFactor=1):
     scaleFactor = 1.*refDist**1/imgDist**1
     if scaleFactor > 2000: scaleFactor = 2000.
     #interp = cv2.INTER_LINEAR
     interp = cv2.INTER_NEAREST
     if scaleFactor < 1.0:
         interp = cv2.INTER_AREA
-        newImg = np.concatenate((img, img, img), axis=0)
-        newImg = np.concatenate((newImg, newImg, newImg), axis=1)
+        newImg = img
+        #newImg = np.concatenate((img, img, img), axis=0)
+        #newImg = np.concatenate((newImg, newImg, newImg), axis=1)
         newImg = cropImg(newImg, tuple([int(round(i/scaleFactor*bufferFactor)) for i in img.shape[:2]]))
     else:
         newImg = cropImg(img, tuple([int(round(i/scaleFactor*bufferFactor)) for i in img.shape[:2]]))
     newImg = cv2.resize(newImg, tuple([int(round(i*scaleFactor)) for i in newImg.shape[:2]]), 0, 0,interp)
     #print newImg.shape
     #print refDim
-    newImg = cropImg(newImg, tuple([int(round(i*bufferFactor)) for i in refDim]))
+    newImg = cropImg(newImg, tuple([int(round(i)) for i in refDim]))
     #print newImg.shape
     return newImg
+
+def singleAxisDistort(img, func, axis=1):
+    temp = np.swapaxes(img,0,1) if axis==1 else img
+    size = temp.shape
+    mid = size[0]/2
+    toRet = None
+    for idx, row in enumerate(temp):
+        scale = func(idx-mid)
+        if toRet is None:
+            toRet = np.zeros((size[0],int(math.ceil(size[1]*scale)),size[2]),dtype=img.dtype)
+        scaled = cv2.resize(row, (0,0), fx=1, fy=scale)
+        top = (toRet.shape[1]-scaled.shape[0])/2
+        bot = top + scaled.shape[0]
+        toRet[idx,top:bot] = np.copy(scaled)
+    return np.swapaxes(toRet,0,1) if axis==1 else toRet
+'''
+func = lambda x: 1+.000000092*x**2
+simg = singleAxisDistort(img, func)
+'''
 
 # Generate the kernel for the PSF of the eye
 def getPSF(focalDist, blurDist, aperture=None, pixelDiameter=.00033, **kwargs):
@@ -200,5 +231,38 @@ def deconvolveWiener(img,psf,nsr):
     return final.clip(0.,1.)
 
 if __name__ == '__main__':
-    pass
+    cross = np.array(((0,0,0,0,255,0,0,0,0),        # Create some white crosses for content 
+                      (0,0,0,0,255,0,0,0,0),
+                      (0,0,0,0,255,0,0,0,0),
+                      (0,0,0,0,255,0,0,0,0),
+                      (255,255,255,255,255,255,255,255,255),
+                      (0,0,0,0,255,0,0,0,0),
+                      (0,0,0,0,255,0,0,0,0),
+                      (0,0,0,0,255,0,0,0,0),
+                      (0,0,0,0,255,0,0,0,0),
+                      ),dtype=np.uint8)
+    cross = np.dstack((cross,cross,cross))
+    spacing = 12
+    crosses = np.hstack((cross, np.zeros((cross.shape[0],cross.shape[1]*spacing,3),dtype=np.uint8),cross, np.zeros((cross.shape[0],cross.shape[1]*spacing,3),dtype=np.uint8),cross))
+    crosses = np.vstack((crosses,np.zeros((crosses.shape[0]*spacing,crosses.shape[1],3),dtype=np.uint8),crosses,np.zeros((crosses.shape[0]*spacing,crosses.shape[1],3),dtype=np.uint8),crosses))
+
+    cv2.namedWindow('HMD')          # Create the windows
+    cv2.namedWindow('Near')
+    cv2.namedWindow('Far')
+    
+    # Displays are an easy way to store the resolution and calculate the pixel size needed for calculating PSF
+    display = Display()
+    # Manipulate the images
+    crosses = cv2.resize(crosses, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR) # double size for demo
+    near = cropImg(crosses, display.resolution) # will shrink or grow image to resolution
+    far = scaleImgDist(.5, 1, crosses, display.resolution, 5) # will scale an image from one distance to another
+    hmd = convolve(near, getPSF(.5, 1, aperture=.004, pixelDiameter=sum(display.pixelSize())/2)) # simulated optical blur
+    while(True):
+        cv2.imshow('HMD', hmd)      # Display the images
+        cv2.imshow('Near', near)
+        cv2.imshow('Far', far)
+        ch = cv2.waitKey() & 0xFF
+        if ch == 27:                # escape
+            break
+    cv2.destroyAllWindows()
 	
