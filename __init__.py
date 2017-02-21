@@ -343,6 +343,7 @@ def initGL():
     GL.glEnable(GL.GL_CULL_FACE)
     GL.glEnable(GL.GL_DEPTH_TEST)
     GL.glDepthFunc(GL.GL_GREATER)
+    #GL.glDepthFunc(GL.GL_LESS)
     GL.glDepthRange(0,1)
     GL.glClearDepth(0)
     GL.glClearColor(0, 0, 0, 0)

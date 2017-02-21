@@ -19,7 +19,7 @@ def drawStr(dst, point, s, scale=1.0,thick=1):
     cv2.putText(dst, s, (x, y), cv2.FONT_HERSHEY_PLAIN, scale, (255, 255, 255),thickness = thick, lineType=cv2.CV_AA)
 
 # Convert a string to a number - only good for 1 number per string (otherwise use regex)
-def strToNum(x):
+def strToInt(x):
     return int(''.join(ele for ele in x if ele.isdigit()))
 
 def imgToHex(img,fill=2):

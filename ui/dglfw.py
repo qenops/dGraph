@@ -75,3 +75,57 @@ def open_window(title, posX, posY, width, height, share=None, key_callback=key_c
     glfw.show_window(window)
     glfw.set_key_callback(window, key_callback)
     return window
+
+
+'''
+# figure out location of screen
+import glfw
+glfw.init()
+glfw.window_hint(glfw.DECORATED, False)
+location = (5176, 1476)
+size = (1050, 1260)
+width = size[0]
+height = size[1]
+posX = location[0]
+posY = location[1]
+title = 'Test'
+share = None
+window = glfw.create_window(width, height, title, None, share)
+glfw.make_context_current(window)
+glfw.swap_interval(1)
+glfw.set_window_pos(window, posX, posY)
+glfw.show_window(window)
+def key_callback(window, key, scancode, action,  mods):
+    if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
+        glfw.set_window_should_close(window, True)
+glfw.set_key_callback(window, key_callback)
+glfw.swap_buffers(window)
+glfw.swap_buffers(window)
+glfw.swap_buffers(window)
+location = glfw.get_window_pos(window)
+size = glfw.get_window_size(window)
+size = glfw.set_window_size(window2, width, height)
+
+location = (6226, 1476)
+size = (998, 1260)
+width = size[0]
+height = size[1]
+posX = location[0]
+posY = location[1]
+title = 'Test 2'
+share = None
+window2 = glfw.create_window(width, height, title, None, share)
+glfw.make_context_current(window2)
+glfw.swap_interval(1)
+glfw.set_window_pos(window2, posX, posY)
+glfw.show_window(window2)
+def key_callback(window2, key, scancode, action,  mods):
+    if action == glfw.PRESS and key == glfw.KEY_ESCAPE:
+        glfw.set_window_should_close(window2, True)
+glfw.set_key_callback(window2, key_callback)
+glfw.swap_buffers(window2)
+glfw.swap_buffers(window2)
+glfw.swap_buffers(window2)
+size = glfw.get_window_size(window2)
+location = glfw.get_window_pos(window2)
+'''

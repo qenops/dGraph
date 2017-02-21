@@ -13,8 +13,10 @@ __version__ = '1.0'
 import numpy as np
 import OpenGL.GL as GL
 from OpenGL.GL import shaders
+from OpenGL.GL import *
 import cv2
 import os
+import dGraph.util.imageManip as dgim
 
 # Get numchannels from format:
 glFormatChannels={GL_STENCIL_INDEX:1, GL_DEPTH_COMPONENT:1, GL_DEPTH_STENCIL:1, GL_RED:1, GL_GREEN:1, GL_BLUE:1, GL_RGB:3, GL_BGR:3, GL_RGBA:4, GL_BGRA:4}
@@ -81,7 +83,7 @@ def prepareImage(image):
         mod = 'F'
     #elif 'u' in img.dtype.name:
     #    mod = 'UI'
-    tempISF = '%s%s%s'%(str(format).split()[0],st.strToInt(img.dtype.name),mod)
+    tempISF = '%s%s%s'%(str(format).split()[0],dgim.strToInt(img.dtype.name),mod)
     exec('internalSizedFormat = %s'%tempISF) 
     return img, iy, ix, channels, format, type, internalSizedFormat
 
@@ -122,6 +124,12 @@ def updateTexture(texture, image):
     #else:
     #   pass
     glBindTexture(GL_TEXTURE_2D, 0)
+
+def attachTexture(texture, shader, index):
+    GL.glActiveTexture(getattr(GL,'GL_TEXTURE%s'%index))                    # make texture register idx active
+    GL.glBindTexture(GL.GL_TEXTURE_2D, texture)                             # bind texture to register idx
+    texLoc = GL.glGetUniformLocation(shader, "tex%s"%index)                 # get location of our texture
+    GL.glUniform1i(texLoc, index)                                           # connect location to register idx
 
 def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filter=GL_LINEAR):
     texture = glGenTextures(1)                           # setup our texture

@@ -35,8 +35,8 @@ class Warp(object):
     def __init__(self, name, **kwargs):      
         self._name = name
         self._numWarp = 1
-        self._numTex = 0
         self._warpList = []     # list of tuples containing (texture, frameBuffer) pair
+        self._texImages = []      # list containing texture images
         self._texList = []      # list containing all textures
         self._stackList = []
         self.shader = None
@@ -86,7 +86,9 @@ void main() {
         for i in xrange(self._numWarp):
             tex, bufferData = dgt.createWarp(self._width,self._height)
             frameBuffer, w, h = bufferData 
-            self._warpList.append((tex, frameBuffer))            # add to our list of textures
+            self._warpList.append((tex, frameBuffer))            # add to our list of warps
+        for img in self._texImages:
+            self._texList.append(dgt.createTexture(img))         # add to our list of textures
         sceneGraphSet = set()
         #if warpOnly:
         #    for stack in self._stackList:
@@ -144,12 +146,12 @@ void main() {
             GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glViewport(posWidth, 0, width, height)                               # set the viewport to the portion we are drawing
         GL.glUseProgram(self.shader)
-        for idx in range(self._numWarp):
+        for idx in range(self._numWarp):                                        # attach our warp textures first
             tex, frameBuffer = self._warpList[idx] 
-            GL.glActiveTexture(getattr(GL,'GL_TEXTURE%s'%idx))                      # make texture register idx active
-            GL.glBindTexture(GL.GL_TEXTURE_2D, tex)                                 # bind texture to register idx
-            texLoc = GL.glGetUniformLocation(self.shader, "tex%s"%idx)              # get location of our texture
-            GL.glUniform1i(texLoc, idx)                                             # connect location to register idx
+            dgt.attachTexture(tex, self.shader, idx)
+        for i, tex in enumerate(self._texList):                                 # then attach our normal textures
+            idx = i + self._numWarp
+            dgt.attachTexture(tex, self.shader, idx)
         GL.glBindVertexArray(self.vertexArray)                                      # bind our vertex array
         GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
         GL.glUseProgram(0)
@@ -255,6 +257,7 @@ class Lookup(Warp):
         super(Lookup, self).__init__(name, **kwargs)
         self._numWarp = 1
         self._lutFile = lutFile
+        self._texImages.append(dgt.loadImage(self._lutFile))   # load our LUT file
         self._fragmentShader = '''
 in vec2 fragTexCoord;
 uniform sampler2D tex0;  // texCol
@@ -267,9 +270,3 @@ void main() {
     FragColor = texture2D(tex0, uv);
 };
 '''
-    def setup(self, width, height): #, warpOnly=False):
-        ''' Setup our geometry and buffers and compile our shaders '''
-        sceneGraphSet = super(Lookup, self).setup(width,height)
-        # load our LUT file
-        image = dgt.loadImage(self._lutFile)
-        self._lutTex = dgt.createTexture(image)
