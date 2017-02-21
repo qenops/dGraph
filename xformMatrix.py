@@ -240,7 +240,7 @@ def getRotation(mat, ro):
     yCrossNormVec = np.cross(zCrossNormVec,xNormVec)
     xCrossNormVec = np.cross(yCrossNormVec,zCrossNormVec)
     crossList = [xCrossNormVec, yCrossNormVec, zCrossNormVec]
-    rotation = np.array(0,0,0)
+    rotation = np.array((0.,0.,0.))
     sgn = 1 if (ro[0]+1)%3 == ro[1] else -1  # check for right or left hand
     rotation[ro[0]] = degrees(atan2(sgn*crossList[ro[1]][ro[2]], crossList[ro[2]][ro[2]]))
     rotation[ro[1]] = degrees(asin(max(-1.0, min(1.0, -1*sgn*crossList[ro[0]][ro[2]]))))  # clamp for floating point error
@@ -254,4 +254,4 @@ def setTranslate(mat, translate):
     pass
 def setScale(mat, scale):
     pass
-    
+
