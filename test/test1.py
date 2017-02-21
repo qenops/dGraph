@@ -64,9 +64,6 @@ def loadCrosses(renderStack, file=None):
     renderStack.append(stereoCam)
     return True 
 
-def loadImageFlip():
-    global renderStack, cameras, objects, display
-
 def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''
     switch = True   # crosseye rendering

@@ -14,6 +14,7 @@ import numpy as np
 import OpenGL.GL as GL
 from OpenGL.GL import shaders
 import cv2
+import os
 
 # Get numchannels from format:
 glFormatChannels={GL_STENCIL_INDEX:1, GL_DEPTH_COMPONENT:1, GL_DEPTH_STENCIL:1, GL_RED:1, GL_GREEN:1, GL_BLUE:1, GL_RGB:3, GL_BGR:3, GL_RGBA:4, GL_BGRA:4}
@@ -84,7 +85,7 @@ def prepareImage(image):
     exec('internalSizedFormat = %s'%tempISF) 
     return img, iy, ix, channels, format, type, internalSizedFormat
 
-def createTexture(image, numMipmaps=1):
+def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=GL_LINEAR_MIPMAP_LINEAR):
     img, height, width, channels, format, type, isf = prepareImage(image)
     print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
     texture = glGenTextures(1)
@@ -92,25 +93,26 @@ def createTexture(image, numMipmaps=1):
     #glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, img)
     glTexStorage2D(GL_TEXTURE_2D, numMipmaps, isf, width, height)
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
     if numMipmaps < 1:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipfilter)
     else:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
     # we should do some verification if the texture is as it should be
-    # glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT)
-    # int(GL_RGBA)
-    # glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_TYPE)
-    # int(GL_UNSIGNED_NORMALIZED)
-    # glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_SIZE)
+    #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT)
+    #int(GL_RGBA)
+    #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_TYPE)
+    #int(GL_UNSIGNED_NORMALIZED)
+    #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_SIZE)
     glBindTexture(GL_TEXTURE_2D, 0)
     return texture
 
 def updateTexture(texture, image):
     img, iy, ix, channels, format, type = prepareImage(image)
     glBindTexture(GL_TEXTURE_2D, texture)
+    # we should do some verification if the texture is as it should be
     #width = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH)
     #height = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT)
     #texFormat = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT)
@@ -121,16 +123,14 @@ def updateTexture(texture, image):
     #   pass
     glBindTexture(GL_TEXTURE_2D, 0)
 
-def createWarp(width, height, type=GL_UNSIGNED_BYTE):
-    texture = glGenTextures(1)                              # setup our texture
+def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filter=GL_LINEAR):
+    texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, type, None)   # Allocate memory
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
     # setup frame buffer
     frameBuffer = glGenFramebuffers(1)                                                                  # Create frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                   # Bind our frame buffer
@@ -140,15 +140,26 @@ def createWarp(width, height, type=GL_UNSIGNED_BYTE):
     return texture, (frameBuffer,width,height)
 
 def readFramebuffer(x, y, width, height, format, gltype=GL.GL_UNSIGNED_BYTE):
-        '''Get pixel values from framebuffer to numpy array'''
-        stringArry = GL.glReadPixels(x,y,width,height,format,gltype)        # read the buffer
-        arry = np.fromstring(stringArry,glTypeToNumpy[gltype])              # convert back to numbers
-        arry = np.reshape(arry,(height,width,glFormatChannels[format]))     # reshape our array to right dimensions
-        arry = np.flipud(arry)                                              # openGL and openCV start images at bottom and top respectively, so flip it
-        if glFormatChannels[format] > 2:                                    # swap red and blue channel
-            temp = np.zeros_like(arry)
-            np.copyto(temp, arry)
-            temp[:,:,0] = arry[:,:,2]
-            temp[:,:,2] = arry[:,:,0]
-            arry=temp
-        return arry
+    '''Get pixel values from framebuffer to numpy array'''
+    stringArry = GL.glReadPixels(x,y,width,height,format,gltype)        # read the buffer
+    arry = np.fromstring(stringArry,glTypeToNumpy[gltype])              # convert back to numbers
+    arry = np.reshape(arry,(height,width,glFormatChannels[format]))     # reshape our array to right dimensions
+    arry = np.flipud(arry)                                              # openGL and openCV start images at bottom and top respectively, so flip it
+    if glFormatChannels[format] > 2:                                    # swap red and blue channel
+        temp = np.zeros_like(arry)
+        np.copyto(temp, arry)
+        temp[:,:,0] = arry[:,:,2]
+        temp[:,:,2] = arry[:,:,0]
+        arry=temp
+    return arry
+
+def loadImage(imgFile):
+    ''' Load an image from a file '''
+    filename, extension = os.path.splitext(imgFile)
+    if extension == '.npy':
+        image = np.load(imgFile)
+    elif extension == '.png':
+        image = cv2.imread(imgFile, -1)
+    else:
+        raise ValueError('File type unknown')
+    return image
