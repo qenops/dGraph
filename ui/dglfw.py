@@ -16,14 +16,12 @@ __version__ = '1.6'
 _key_callbacks = {}
 
 import glfw
-import dGraph as dg
 from glfw import *
 
 def init():
     glfw.set_error_callback(error_callback)
     if not glfw.init():
         exit(1)
-    dg.initGL()
 
 def error_callback(error, description):
     print("Error: %s\n", description)

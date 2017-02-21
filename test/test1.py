@@ -34,7 +34,7 @@ def loadCrosses(renderStack, file=None):
     '''Load or create our sceneGraph'''
     scene = dg.SceneGraph(file)
     stereoCam = dgc.StereoCamera('front', scene)
-    stereoCam.setResolution((width/2, height))
+    stereoCam.setResolution((renderStack.width/2, renderStack.height))
     stereoCam.setTranslate(0.,0.,0.)
     stereoCam.setFOV(50.)
     stereoCam.IPD = .062
@@ -57,8 +57,8 @@ def loadCrosses(renderStack, file=None):
         cross.translate = position
         renderStack.objects[cross.name] = cross
         print(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.)
-        material = dgs.Material('material%s'%idx,ambient=(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.), amb_coeff=.5)
-        #material = dgs.Lambert('material%s'%idx,ambient=(1,0,0), amb_coeff=.5, diffuse=(1,1,1), diff_coeff=1)
+        material = dgm.Material('material%s'%idx,ambient=(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.), amb_coeff=.5)
+        #material = dgm.Lambert('material%s'%idx,ambient=(1,0,0), amb_coeff=.5, diffuse=(1,1,1), diff_coeff=1)
         cross.setMaterial(material)
     renderStack.cameras = [stereoCam]
     renderStack.append(stereoCam)
@@ -235,7 +235,20 @@ def drawGLScene(renderStack):
     #frameCount+=1
     #elapsed = endTime-startTime
     #fps = frameCount / elapsed
-    
+
+''' In order to do input with mouse and keyboard, we need to setup a state machine with 
+states switches from mouse presses and releases and certain key presses 
+- maybe enable a glfwSetCursorPosCallback when button is pressed, or
+- more likely just poll cursor position since you can't disable a callback'''
+def arrowKey(window,direction):
+    if direction == 3:
+        print "up"
+    elif direction == 2:
+        print "right"
+    elif direction == 1:
+        print "left"
+    else:
+        print "down"
 
 def runTest():
     renderStack = ui.RenderStack()
@@ -246,7 +259,7 @@ def runTest():
     print("Hit ESC key to quit.")
     # pass arguments to init
     ui.init()
-    #loadCrosses()
+    #
     # Timing code
     #frameCount = 0
     #startTime = time()
@@ -256,19 +269,24 @@ def runTest():
     #cv2.imshow(winName, frame)
     #cv2.imshow('%s Depth'%winName, depth)
     #cv2.waitKey()
-    offset = 50
-    mainWindow = renderStack.addWindow(ui.open_window("OpenGL_noMipMap", offset, offset, renderStack.display.width, renderStack.display.height))
+    offset = (1920,0)
+    mainWindow = renderStack.addWindow(ui.open_window("OpenGL_noMipMap", offset[0], offset[1], renderStack.display.width, renderStack.display.height))
     if not mainWindow:
         ui.terminate()
         exit(1)
     x, y = ui.get_window_pos(mainWindow)
     width, height = ui.get_window_size(mainWindow)
     ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
+    ui.add_key_callback(arrowKey, ui.KEY_UP, direction=3)
+    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, direction=2)
+    ui.add_key_callback(arrowKey, ui.KEY_LEFT, direction=1)
+    ui.add_key_callback(arrowKey, ui.KEY_DOWN, direction=0)
     ui.make_context_current(mainWindow)
+    dg.initGL()
 
     loadScene(renderStack)
+    #loadCrosses(renderStack)
     renderStack.graphicsCardInit()
-
     while not ui.window_should_close(mainWindow):
         ui.make_context_current(mainWindow)
         drawGLScene(renderStack)
