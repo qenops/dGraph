@@ -104,7 +104,7 @@ glfw.swap_buffers(window)
 glfw.swap_buffers(window)
 location = glfw.get_window_pos(window)
 size = glfw.get_window_size(window)
-size = glfw.set_window_size(window2, width, height)
+#size = glfw.set_window_size(window2, width, height)
 
 location = (6226, 1476)
 size = (998, 1260)

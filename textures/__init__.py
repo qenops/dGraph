@@ -61,6 +61,10 @@ glNumpyToType={
 }
 def prepareImage(image):
     iy, ix, channels = image.shape if len(image.shape)>2 else [image.shape[0], image.shape[1], 1]
+    img = image
+    #if channels == 1:
+    #    img = cv2.cvtColor(cv2.cvtColor(image,cv2.COLOR_GRAY2RGB),cv2.COLOR_RGB2RGBA)
+    #    channels = 4
     if channels == 4:
         if image.dtype.type == np.float64:  # if they are float64, they were loaded as numpy arrays, so don't swap channels
             img = image.astype(np.float32)
@@ -72,18 +76,19 @@ def prepareImage(image):
         else:
             img = cv2.cvtColor(image,cv2.COLOR_BGR2RGBA)
         channels = 4
-    else:
-        img = image
     img = np.flipud(img)
     format = glChannelsFormat[channels]
     type = glNumpyToType[img.dtype.type]
     # This is ugly (using exec) but I can't figure another way to do it
+    formatBase = str(format).split()[0]
     mod = ''
     if 'float' in img.dtype.name:
         mod = 'F'
+        if channels == 1:
+            formatBase = 'GL_R'
     #elif 'u' in img.dtype.name:
     #    mod = 'UI'
-    tempISF = '%s%s%s'%(str(format).split()[0],dgim.strToInt(img.dtype.name),mod)
+    tempISF = '%s%s%s'%(formatBase,dgim.strToInt(img.dtype.name),mod)
     exec('internalSizedFormat = %s'%tempISF) 
     return img, iy, ix, channels, format, type, internalSizedFormat
 
@@ -112,7 +117,7 @@ def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=
     return texture
 
 def updateTexture(texture, image):
-    img, iy, ix, channels, format, type = prepareImage(image)
+    img, height, width, channels, format, type, isf = prepareImage(image)
     glBindTexture(GL_TEXTURE_2D, texture)
     # we should do some verification if the texture is as it should be
     #width = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH)
@@ -120,7 +125,7 @@ def updateTexture(texture, image):
     #texFormat = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT)
     #texType = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_RED_TYPE)
     #if ix == width and iy == height and format == texFormat and type == texType:
-    glTexImage2D(GL_TEXTURE_2D, 0, format, ix, iy, 0, format, type, img)
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
     #else:
     #   pass
     glBindTexture(GL_TEXTURE_2D, 0)

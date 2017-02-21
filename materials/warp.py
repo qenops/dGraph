@@ -34,6 +34,7 @@ class Warp(object):
         return cls._warpList[name]
     def __init__(self, name, **kwargs):      
         self._name = name
+        self._setup = False
         self._numWarp = 1
         self._warpList = []     # list of tuples containing (texture, frameBuffer) pair
         self._texImages = []      # list containing texture images
@@ -78,6 +79,8 @@ void main() {
         )
     def setup(self, width, height): #, warpOnly=False):
         ''' Setup our geometry and buffers and compile our shaders '''
+        if self._setup:
+            return set()
         self._width = width
         self._height = height
         self._warpList = []                  # clear textures for resizing
@@ -99,6 +102,7 @@ void main() {
         for stack in self._stackList:
             for node in stack:
                 sceneGraphSet.update(node.setup(width, height))
+        self._setup = True
         return sceneGraphSet
     def setupGeo(self):
         ''' setup geometry and vbos '''

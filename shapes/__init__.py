@@ -78,6 +78,7 @@ class PolySurface(Shape):
         #self._normsGL = None
         #self._facesGL = None
         #self._kdTree = KdTree()
+        self._VBOdone = False
     def writeToObj(self, file):
         return obj.write(file, self._verts, self._uvs, self._normals, self._faceVerts, self._faceUvs, self._faceNormals)
     def getVertList(self):
@@ -159,6 +160,8 @@ class PolySurface(Shape):
             return np.concatenate((vertsGL,uvsGL,normsGL)), faces.astype(np.uint32), [len(vertsGL),len(uvsGL),len(normsGL)]
     def generateVBO(self):
         ''' generates OpenGL VBO and VAO objects '''
+        if self._VBOdone:
+            return
         #global shader_pos, shader_uvs, shader_norm
         vertsGL, facesGL, lengths = self.triangulateGL()                                                    # make sure our vert list and face list are populated
         self.numTris = len(facesGL)
@@ -196,6 +199,7 @@ class PolySurface(Shape):
         GL.glDisableVertexAttribArray(shader_norm) if len(self._uvs.A1) > 2 and shader_norm != -1 else True
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
+        self._VBOdone = True
     def renderGL(self, filmMatrix=None, cameraMatrix=None):
         GL.glUseProgram(self._material.shader)
         # multiply the world transform to the camera matrix
