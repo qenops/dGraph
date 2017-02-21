@@ -34,6 +34,7 @@ from random import uniform
 #OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 import OpenGL.GL as GL
 import ctypes
+import cv2
 
 import xformMatrix as xm
 import objIO as obj
@@ -294,10 +295,10 @@ class WorldObject(object):
         return self._worldMatrix
     def localPointToWorld(self, local):
         ''' use the world matrix to calculate a local point in worldspace '''
-        return np.array(np.concatenate((local,[1]))*self.worldMatrix.value)[0][0:3]
+        return np.array(np.concatenate((local,[1]))*self.worldMatrix)[0][0:3]
     def localVectorToWorld(self, local):
         ''' use the world matrix to calculate a local vector in worldspace '''
-        return np.array(np.concatenate((local,[0]))*self.worldMatrix.value)[0][0:3]
+        return np.array(np.concatenate((local,[0]))*self.worldMatrix)[0][0:3]
     def setTranslate(self, tx, ty, tz):
         self.translate = np.array([tx,ty,tz])
     def setRotate(self, rx, ry, rz):
@@ -420,7 +421,7 @@ class Sphere(ImplicitSurface):
 class Plane(ImplicitSurface):
     def __init__(self, name, parent, distance=0, normal=[0,1,0]):
         function = '(p-point).dot(normal)=0'
-        super(Plane, self).__init__(name, parent, function)
+        super(Plane, self).__init__(name, function, parent)
         self._normal = np.array(normal)
         self._distance = distance
     @property
@@ -875,6 +876,10 @@ class StereoCamera(WorldObject):
             #print stack
             temp=stack.pop()
             temp.render(width/2, height, stack, parentFrameBuffer, posWidth=idx*width/2, clear=not idx)   # Go up the render stack to get our texture
+            #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
+            #data = np.reshape(data,(height,width,3))
+            #cv2.imshow('%s:%s'%(self._name,temp._name),data)
+            #cv2.waitKey()
         #print '%s leaving render. %s'%(self.__class__, self._name)
     
 class Camera(WorldObject):

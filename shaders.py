@@ -18,7 +18,7 @@ import numpy as np
 import OpenGL.GL as GL
 from OpenGL.GL import shaders
 import ctypes
-#import cv2
+import cv2
 
 _shaderHeader = '''
 #version 330
@@ -558,7 +558,7 @@ void main() {
         GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
         self._textureList.append((tex, frameBuffer))                                                           # add to our list of textures
         # load our LUT file
-        #image = cv2.imread(self._lutFile, cv2.CV_LOAD_IMAGE_COLOR)
+        image = cv2.imread(self._lutFile, cv2.CV_LOAD_IMAGE_COLOR)
         # setup our LUT texture
         tex = GL.glGenTextures(1)                             
         GL.glBindTexture(GL.GL_TEXTURE_2D, tex)                # bind texture
