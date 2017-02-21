@@ -12,11 +12,12 @@ www.qenops.com
 '''
 __author__ = ('David Dunn')
 __version__ = '1.6'
-__all__ = []
+
 _key_callbacks = {}
 
 import glfw
 import dGraph as dg
+from glfw import *
 
 def init():
     glfw.set_error_callback(error_callback)
@@ -28,7 +29,7 @@ def error_callback(error, description):
     print("Error: %s\n", description)
 
 def add_key_callback(function, key, action=glfw.PRESS, mods=0x0000, *args, **kwargs):
-    ''' key callbacks are stored as key, action, function, args, kwargs 
+    ''' key callbacks are stored as dict[(key, action, mods)] = (function, args, kwargs) 
     note that function must always accept the window as first argument'''
     _key_callbacks[(key,action,mods)] = (function, args, kwargs)
 
@@ -76,11 +77,3 @@ def open_window(title, posX, posY, width, height, share=None, key_callback=key_c
     glfw.show_window(window)
     glfw.set_key_callback(window, key_callback)
     return window
-
-
-make_context_current = glfw.make_context_current
-swap_buffers = glfw.swap_buffers
-poll_events = glfw.poll_events
-wait_events = glfw.wait_events
-set_window_should_close = glfw.set_window_should_close
-terminate = glfw.terminate

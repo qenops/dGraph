@@ -11,7 +11,6 @@ www.qenops.com
 __author__ = ('David Dunn')
 __version__ = '1.0'
 
-import dglfw as fw
 import OpenGL
 OpenGL.ERROR_CHECKING = False      # Uncomment for 2x speed up
 OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
@@ -20,16 +19,21 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 import OpenGL.GL as GL
 import cv2
 import numpy as np
-import dGraph as dg
 import dDisplay as dd
+import dGraph as dg
+import dGraph.ui as ui
+import dGraph.cameras as dgc
+import dGraph.shapes as dgs
+import dGraph.materials as dgm
+import dGraph.materials.warp
+import dGraph.util.imageManip as im
 
-modelDir = './data'
+modelDir = './dGraph/test/data'
 
-def loadCrosses(file=None):                
+def loadCrosses(renderStack, file=None):                
     '''Load or create our sceneGraph'''
-    global renderStack, cameras, objects
     scene = dg.SceneGraph(file)
-    stereoCam = dg.StereoCamera('front', scene)
+    stereoCam = dgc.StereoCamera('front', scene)
     stereoCam.setResolution((width/2, height))
     stereoCam.setTranslate(0.,0.,0.)
     stereoCam.setFOV(50.)
@@ -48,80 +52,77 @@ def loadCrosses(file=None):
         np.array((.2,.2,-10.)),
     ]
     for idx, position in enumerate(crosses):
-        cross = dg.PolySurface('cross%s'%idx, scene, file = '%s/cross.obj'%modelDir)
+        cross = dgs.PolySurface('cross%s'%idx, scene, file = '%s/cross.obj'%modelDir)
         cross.setScale(.01,.01,.01)
         cross.translate = position
-        objects[cross.name] = cross
+        renderStack.objects[cross.name] = cross
         print(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.)
         material = dgs.Material('material%s'%idx,ambient=(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.), amb_coeff=.5)
         #material = dgs.Lambert('material%s'%idx,ambient=(1,0,0), amb_coeff=.5, diffuse=(1,1,1), diff_coeff=1)
         cross.setMaterial(material)
-    cameras = [stereoCam]
+    renderStack.cameras = [stereoCam]
     renderStack.append(stereoCam)
-    dg.graphicsCardInit(renderStack, width, height)
     return True 
 
 def loadImageFlip():
     global renderStack, cameras, objects, display
 
-def loadScene(file=None):                
+def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''
-    global renderStack, cameras, objects, display
-
     switch = True   # crosseye rendering
     #switch = False
     IPD = .092
     #IPD = -.030
     
     backScene = dg.SceneGraph(file)
-    bstereoCam = dg.StereoCamera('back', backScene, switch)
-    bstereoCam.setResolution((width/2, height))
+    bstereoCam = dgc.StereoCamera('back', backScene, switch)
+    bstereoCam.setResolution((renderStack.width/2, renderStack.height))
     bstereoCam.setTranslate(0.,0.,0.)
     bstereoCam.setFOV(50.)
     bstereoCam.IPD = IPD
     bstereoCam.far = 10
-    cameras.append(bstereoCam)
-    cube = dg.PolySurface('cube', backScene, file = '%s/cube.obj'%modelDir)
+    renderStack.cameras.append(bstereoCam)
+    cube = dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%modelDir)
     cube.setScale(.2,.2,.2)
     cube.setTranslate(0.,0.,-10.)
     cube.setRotate(25.,65.,23.)
-    objects['cube'] = cube
-    #plane = dg.PolySurface('plane', backScene, file = '%s/objects/wedge.obj'%modelDir)
+    renderStack.objects['cube'] = cube
+    #plane = dgs.PolySurface('plane', backScene, file = '%s/objects/wedge.obj'%modelDir)
     #objects['plane'] = plane
     #plane.setScale(.005,.005,.005)
     #plane.setRotate(0.,180.,0.)
     #plane.setTranslate(.0,.0,-10.)
-    teapot = dg.PolySurface('teapot', backScene, file = '%s/teapot.obj'%modelDir)
+    teapot = dgs.PolySurface('teapot', backScene, file = '%s/teapot.obj'%modelDir)
     teapot.setScale(.1,.1,.1)
     teapot.setTranslate(.0,-.05,-4.)
     teapot.setRotate(5.,0.,0.)
-    objects['teapot'] = teapot
+    renderStack.objects['teapot'] = teapot
     
     #frontScene = dg.SceneGraph(file)
-    #stereoCam = dg.StereoCamera('front', frontScene, switch)
-    #stereoCam.setResolution((width/2, height))
+    #stereoCam = dgc.StereoCamera('front', frontScene, switch)
+    #stereoCam.setResolution((renderStack.width/2, renderStack.height))
     #stereoCam.translate.connect(bstereoCam.translate)
     #stereoCam.rotate.connect(bstereoCam.rotate)
     #stereoCam.setFOV(50.)
     #stereoCam.IPD.connect(bstereoCam.IPD)
-    #sphere = dg.PolySurface.polySphere('sphere',frontScene)
+    #sphere = dgs.PolySurface.polySphere('sphere',frontScene)
     #sphere.setScale(.05,.05,.05)
     #sphere.setTranslate(-.05,0.,-6.)
-    #objects['sphere'] = sphere
+    #renderStack.objects['sphere'] = sphere
     
-    #material1 = dgs.Lambert('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-    material1 = dgs.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-    for obj in objects.itervalues():
+    #material1 = dgm.Lambert('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
+    material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
+    for obj in renderStack.objects.itervalues():
         obj.setMaterial(material1)
     
-    imageScale = display.resolution[0]/(width/2.)
-    pixelDiameter = imageScale*display.pixelSize()[0]
-    ftBlur = dgs.Convolution('ftBlur')
+    imageScale = renderStack.display.resolution[0]/(renderStack.width/2.)
+    pixelDiameter = imageScale*renderStack.display.pixelSize()[0]
+    ftBlur = dgm.warp.Convolution('ftBlur')
     kernel = im.getPSF(10., 8., aperture=.004, pixelDiameter=pixelDiameter)
     ftBlur.kernel = kernel
     #stereoCam.rightStackAppend(ftBlur)
     
-    bkBlur = dgs.Convolution('bkBlur')
+    bkBlur = dgm.warp.Convolution('bkBlur')
     kernel = im.getPSF(8., 10., aperture=.004, pixelDiameter=pixelDiameter)
     bkBlur.kernel = kernel
     #bstereoCam.leftStackAppend(bkBlur)
@@ -136,8 +137,6 @@ def loadScene(file=None):
 
     #warp = dgs.Lookup('lookup', 'warpWorking.png')
     #renderStack.append(warp)
-
-    dg.graphicsCardInit(renderStack, width, height)
     return True                                                         # Initialization Successful
 
 def writeImages(buffer):
@@ -203,19 +202,17 @@ def writeImages(buffer):
     cv2.imshow('Left output-%s.png'%buffer,left)
     cv2.waitKey()
     
-def DrawGLScene():
+def drawGLScene(renderStack):
     ''' Draw everything in stereo '''
-    global renderStack, frameCount, cameras, width, height
     myStack = list(renderStack)                                     # copy the renderStack so we can pop and do it again next frame
     #myStack = renderStack
     temp = myStack.pop()
-    temp.render(width, height, myStack)                    # Render our warp to screen
+    temp.render(renderStack.width, renderStack.height, myStack)                    # Render our warp to screen
     #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
     #data = np.reshape(data,(height,width,3))
     #cv2.imshow('%s:%s'%('final frame',temp._name),data)
     #cv2.waitKey()
-    #GLUT.glutPostRedisplay()
-    GLUT.glutSwapBuffers()
+
     
     #for cam in cameras:
     #    cam.far = frameCount % 1000
@@ -241,21 +238,15 @@ def DrawGLScene():
     
 
 def runTest():
-    display = dd.Display()
-    renderStack = []
-    cameras = []
-    objects = {}
-    width, height = (1920, 1080)
-    #width, height = (1080, 1080)
+    renderStack = ui.RenderStack()
+    renderStack.display = dd.Display()
     nsr, aperture = 25, .001  # noise to signal for deconvolution
     winName = 'Binocular Depth Fusion'
     # Print message to console, and kick off the main to get it rolling.
     print("Hit ESC key to quit.")
     # pass arguments to init
-    fw.init()
-    loadScene()
+    ui.init()
     #loadCrosses()
-    dg.initGL()
     # Timing code
     #frameCount = 0
     #startTime = time()
@@ -265,7 +256,27 @@ def runTest():
     #cv2.imshow(winName, frame)
     #cv2.imshow('%s Depth'%winName, depth)
     #cv2.waitKey()
+    offset = 50
+    mainWindow = renderStack.addWindow(ui.open_window("OpenGL_noMipMap", offset, offset, renderStack.display.width, renderStack.display.height))
+    if not mainWindow:
+        ui.terminate()
+        exit(1)
+    x, y = ui.get_window_pos(mainWindow)
+    width, height = ui.get_window_size(mainWindow)
+    ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
+    ui.make_context_current(mainWindow)
 
+    loadScene(renderStack)
+    renderStack.graphicsCardInit()
+
+    while not ui.window_should_close(mainWindow):
+        ui.make_context_current(mainWindow)
+        drawGLScene(renderStack)
+        ui.swap_buffers(mainWindow)
+        ui.poll_events()
+        #ui.wait_events()
+    ui.terminate()
+    exit(0)
 
 if __name__ == '__main__':
     runTest()

@@ -19,7 +19,8 @@ import OpenGL.GL as GL
 from OpenGL.GL import shaders
 import ctypes
 #import cv2
-from materials import _shaderHeader
+import dGraph.materials as dgm
+_shaderHeader = dgm._shaderHeader
 
 class Warp(object):
     ''' A warp class that takes an image and alters it in some manner '''

@@ -15,6 +15,7 @@ __version__ = '1.6'
 __all__ = ["Camera", "StereoCamera"]
 
 from dGraph import *
+import dGraph.xformMatrix as xm
 import OpenGL.GL as GL
 import random
 from math import floor, ceil

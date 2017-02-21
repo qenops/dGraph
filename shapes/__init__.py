@@ -21,6 +21,7 @@ from math import sin, cos, pi
 import numpy as np
 from numpy.linalg import norm
 from numpy import dot, cross, matlib
+import OpenGL.GL as GL
 
 class Shape(WorldObject):
     ''' Any world object that has a renderable surface
@@ -76,7 +77,7 @@ class PolySurface(Shape):
         #self._uvsGL = None
         #self._normsGL = None
         #self._facesGL = None
-        self._kdTree = KdTree()
+        #self._kdTree = KdTree()
     def writeToObj(self, file):
         return obj.write(file, self._verts, self._uvs, self._normals, self._faceVerts, self._faceUvs, self._faceNormals)
     def getVertList(self):

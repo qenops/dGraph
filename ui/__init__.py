@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''User interface submodule for dGraph scene description module
+'''User interface submodule for dGraph scene description module based on glfw
 
 David Dunn
 Feb 2017 - created
@@ -14,7 +14,11 @@ __author__ = ('David Dunn')
 __version__ = '1.6'
 __all__ = []
 
+WINDOWSTACKS = {}       # Each window can have 1 associated renderStack
+WINDOWS = []
 import OpenGL.GL as GL
+import dglfw as fw
+from dglfw import *
 
 class RenderStack(list):
     '''An object representing a renderable view of the scene graph
@@ -25,32 +29,81 @@ class RenderStack(list):
     _window - the window containing the OpenGL context for the view
     _width, _height - width and height of the view
     '''
-    def __init__(self):
-        super(RenderStack,self).__init__()
-        self._cameras = []
-        self._objects = {}
-        self._display = None
-        self._window = None
-        self._width, self._height = (1920, 1080)
+    def __init__(self, *args, **kwargs):
+        super(RenderStack,self).__init__(*args, **kwargs)
+        self._windows = []      # a renderStack can be displayed in multiple windows   
+        self._width = None
+        self._height = None
+        self.cameras = []       # just for convinience if wanted
+        self.objects = {}       # just for convinience if wanted
+        self.displays = []      # just for convinience if wanted
+    @property
+    def width(self):
+        if self._width is None:
+            self.calcSize()
+        return self._width
+    @property
+    def height(self):
+        if self._height is None:
+            self.calcSize()
+        return self._height
+    def calcSize(self):
+        width, height = (0,0)
+        for win in self._windows:
+            w,h = fw.get_window_size(win)
+            width = max(width, w)
+            height = max(height, h)
+        self._width = None if width == 0 else width
+        self._height = None if height == 0 else height 
+    def addWindow(self, window):
+        self._windows.append(window)
+        id = get_window_id(window)
+        other = WINDOWSTACKS.get(id,None)
+        if other is not None:
+            other.removeWindow(window)
+        WINDOWSTACKS[id] = self
+        return window
+    def removeWindow(self, window):
+        self._windows.remove(window)
+        id = get_window_id(window)
+        WINDOWSTACKS.pop(id)
 
-def graphicsCardInit(renderStack, width, height):
-    ''' compile shaders and create VBOs and such '''
-    sceneGraphSet = set()
-    for node in renderStack:
-        sceneGraphSet.update(node.setup(width, height))
-    for sceneGraph in sceneGraphSet:
-        for obj in sceneGraph:                                                      # convert the renderable objects in the scene
-            if obj.renderable:
-                print obj.name
-                obj.generateVBO()
+    def graphicsCardInit(self):
+        ''' compile shaders and create VBOs and such '''
+        sceneGraphSet = set()
+        for node in self:
+            sceneGraphSet.update(node.setup(self.width, self.height))
+        for sceneGraph in sceneGraphSet:
+            for obj in sceneGraph:                                                      # convert the renderable objects in the scene
+                if obj.renderable:
+                    print obj.name
+                    obj.generateVBO()
 
 def resize_window_callback(window, w, h):
     '''Need to figure out how to track this
     what is rederStack -> window relationship??? '''
-    global renderStack, cameras, width, height
+    renderStack = WINDOWSTACKS[window]
     width = w if w > 1 else 2
     height = h if h > 1 else 2
+    renderStack._width = None
+    renderStack._height = None
     for cam in cameras:
-        cam.setResolution((width/2, height))
+        cam.setResolution((width/2, height))  # for binocular ???
     for node in renderStack:
-        node.setup(width, height)
+        node.setup(renderStack.width, renderStack.height)
+
+def get_window_id(window):
+    try:
+        id = WINDOWS.index(window)
+    except ValueError:
+        id = len(WINDOWS)
+        WINDOWS.append(window)
+    return id
+
+def close_window(window):
+    id = get_window_id(window)
+    rs = WINDOWSTACKS[id]
+    if rs is not None:
+        rs.removeWindow(window)
+    WINDOWS[id] = None
+    fw.set_window_should_close(window, True)

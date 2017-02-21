@@ -13,7 +13,7 @@ www.qenops.com
 '''
 __author__ = ('David Dunn')
 __version__ = '1.6'
-__all__ = ["Material", "Lambert", "Blinn", "Reflective"]
+__all__ = ["Material", "Lambert", "Blinn", "Reflective", "warp"]
 
 import numpy as np
 import OpenGL.GL as GL
@@ -21,6 +21,7 @@ from OpenGL.GL import shaders
 from math import sqrt
 from numpy.linalg import norm
 from numpy import dot, vdot
+import dGraph as dg
 #import cv2
 
 _shaderHeader = '''
@@ -45,7 +46,7 @@ class Material(object):
         return cls._materialList[name]
     def __init__(self, name, ambient=(.3,.3,.3), amb_coeff=1, **kwargs):      
         self._name = name
-        self._ambient = Plug()
+        #self._ambient = dg.Plug()
         self.setAmbient(ambient)
         self.setAmbientCoefficient(amb_coeff)
         self.shader = None
