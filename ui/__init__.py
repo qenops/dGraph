@@ -82,6 +82,22 @@ class RenderStack(list):
                     print obj.name
                     obj.generateVBO()
 
+class Display(object):
+    ''' A class that defines the physical properties of a display '''
+    def __init__(self, resolution=(1080,1920), size=(.071,.126), bezel=((.005245,.005245),(.01,.01)),location=np.array(0.,0.,0.)):  # default to Samsung Note 3
+        self.resolution = resolution
+        self.size = size
+        self.bezel = bezel
+        self.location = location  # the top left corner of the display (not the bezel)
+    @property
+    def width(self):
+        return self.resolution[1]
+    @property
+    def height(self):
+        return self.resolution[0]
+    def pixelSize(self):
+        return (self.size[0]/self.resolution[0], self.size[1]/self.resolution[1])
+
 def resize_window_callback(window, w, h):
     '''Need to figure out how to track this
     what is rederStack -> window relationship??? '''

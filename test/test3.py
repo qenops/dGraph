@@ -1,5 +1,5 @@
 #!/usr/bin/python
-'''Test for an openGL based stereo renderer - test distortion warp texture
+'''Test for an openGL based stereo renderer - test texture mapping
 
 David Dunn
 Feb 2017 - created

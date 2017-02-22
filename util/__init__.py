@@ -106,3 +106,66 @@ def drawMixWarp(frameTex, frameBuffer, lut1Tex, lut2Tex, factor, imgTex, shader)
     glBindTexture(GL_TEXTURE_2D, 0)
     glDisable(GL_TEXTURE_2D)
     glUseProgram(0)
+
+def writeImages(buffer):
+    '''Write Images (three buffers for each):
+        Standard Blur (What you see is what you get):   [0-3]
+        Deconvolution Blur:                             [4-6]
+        Band Stop Filter:                               [7-9]
+    '''
+    correctShift = False
+    global renderStack, cameras, width, height, display, nsr, aperture
+    if buffer <= 9:     # Standard Blur
+        image = dgt.readFramebuffer(0,0,width,height,GL.GL_RGB)
+        # split left and right eye
+        left = image[:,:width/2]
+        right = image[:,width/2:]
+    elif buffer <= 6:   # Deconvolution Blur
+        images = []
+        depths = [objects['teapot'].translate[2],objects['sphere'].translate[2]]
+        for camera in cameras:
+            camera.stackSuspend()
+            myStack = [camera]
+            myStack.pop().render(width, height, myStack)
+            images.append(dgt.readFramebuffer(0,0,width,height,GL.GL_RGBA,GL.GL_FLOAT))
+            camera.stackResume()
+        # This is going to be hacky - find a better way of getting image/focal depth
+        composited = [np.zeros_like(images[0][:,width/2:,:3]),np.zeros_like(images[0][:,:width/2,:3])]
+        imageScale = display.resolution[0]/(width/2.)
+        pixelDiameter = imageScale*display.pixelSize()[0]
+        for idx, image in enumerate(images):
+            imageDepth = depths[idx]
+            lf = image[:,:width/2]
+            rt = image[:,width/2:]
+            for dex, side in enumerate([rt,lf]):
+                focusDepth = depths[dex]
+                if imageDepth != focusDepth:
+                    psf = im.getPSF(abs(focusDepth), abs(imageDepth), aperture=aperture, pixelDiameter=pixelDiameter)
+                    topAlpha = im.deconvolveWiener(side[:,:,3],psf,nsr)[:,:,0]
+                    topColor =  im.deconvolveWiener(cv2.multiply(side[:,:,:3],np.dstack((side[:,:,3],side[:,:,3],side[:,:,3]))),psf,nsr)
+                else:
+                    topAlpha = side[:,:,3]
+                    topColor = side[:,:,:3]
+                composited[dex], trash = im.over(topColor, topAlpha, composited[dex])
+        scale = float(im.getBitDepthScaleFactor('uint8'))
+        right = np.uint8(composited[0]*scale)
+        left = np.uint8(composited[1]*scale)
+    else:               # Band Stop filter
+        pass
+    # scale the right eye
+    #right = im.scaleImgDist(10., 8., right, (right.shape[1],right.shape[0]), 1.0)
+    #interp = cv2.INTER_NEAREST
+    #right = cv2.resize(right, tuple([int(round(i*1.05)) for i in (left.shape[1],left.shape[0])]), 0, 0,interp)
+    #right = im.cropImg(right, (left.shape[0],left.shape[1]))
+    if correctShift:
+        # calculate pixel shift to display correct IPD
+        imageScale = display.resolution[0]/(width/2.)
+        shift = int(round((display.size[0]/2. + display.bezel[0] - cameras[0].IPD/2.) / (imageScale*display.pixelSize()[0])))  
+        left = np.roll(left, shift, 1)            # correct images for display ipd
+        right = np.roll(right, -shift, 1)
+    #buffer = 'calibration'
+    cv2.imwrite('./leftRenders/output-%s.png'%buffer, left)
+    cv2.imwrite('./rightRenders/output-%s.png'%buffer, right)
+    print("Wrote files to output-%s.png"%buffer)
+    cv2.imshow('Left output-%s.png'%buffer,left)
+    cv2.waitKey()
