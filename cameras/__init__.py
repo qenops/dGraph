@@ -48,8 +48,26 @@ class Camera(WorldObject):
             child._parentMatrixDirty()
     def setResolution(self, res):
         self._film.setResolution(res)
+    @property
+    def fov(self):
+        return self._film.fov
+    @fov.setter
+    def fov(self, value):
+        self._film.fov = value
+    @property
+    def near(self):
+        return self._film.near
+    @near.setter
+    def near(self, value):
+        self._film.near = value
+    @property
+    def far(self):
+        return self._film.far
+    @far.setter
+    def far(self, value):
+        self._film.far = value
     def setFOV(self, fov):
-        self._film.fov = fov
+        self.fov = fov
     def setSamples(self, samples):
         self._samples = samples
     def setBackFaceCulling(self, bfc):
@@ -111,14 +129,14 @@ class FilmBack(WorldObject):
             nextPixel
             nextSample (of same pixel)
     '''
-    def __init__(self, name, parent, worldDim=(.2, .2), res=(512,512), samples=1, near=.1, far=1000., fov=50.):
+    def __init__(self, name, parent, worldDim=(.2, .2), res=(512,512), samples=1, near=1, far=1000., fov=50.):
         if parent is None or not isinstance(parent, Camera):
             raise AttributeError('Parent of a FilmBack must be a Camera.')
         super(FilmBack, self).__init__(name, parent)
         self._worldDim = worldDim
         self.setResolution(res)
-        self._near = near
-        self._far = far
+        self.near = near
+        self.far = far
         self.fov = fov
         self._backFaceCull = True
         self._filmMatrix = None
@@ -128,6 +146,20 @@ class FilmBack(WorldObject):
     @fov.setter
     def fov(self, value):
         self._fov = value
+        self._filmMatrixDirty()
+    @property
+    def near(self):
+        return self._near
+    @near.setter
+    def near(self, value):
+        self._near = value
+        self._filmMatrixDirty()
+    @property
+    def far(self):
+        return self._far
+    @far.setter
+    def far(self, value):
+        self._far = value
         self._filmMatrixDirty()
     def setResolution(self, res):
         self._resolution = res
