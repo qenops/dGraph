@@ -39,7 +39,7 @@ class Sphere(ImplicitSurface):
     '''
     def __init__(self, name, parent, radius=1):
         function = '(x - x_0 )^2 + (y - y_0 )^2 + ( z - z_0 )^2 = r^2'
-        super(Sphere, self).__init__(name, function, parent)
+        super(Sphere, self).__init__(name, parent, function)
         self._radius = radius
     @property
     def radius(self):

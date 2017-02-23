@@ -212,7 +212,7 @@ class Convolution(Warp):
         code.append('void main() {\n')
         code.append('    FragColor = vec4(0f,0f,0f,0f);\n')
         shape = self.kernel.shape
-        print(shape[0]*shape[1])
+        #print(shape[0]*shape[1])
         it = np.nditer(self.kernel, flags=['multi_index'])
         while not it.finished:
             s = sStep*(it.multi_index[1]-shape[1]/2.)

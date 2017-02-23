@@ -94,7 +94,7 @@ def prepareImage(image):
 
 def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=GL_LINEAR_MIPMAP_LINEAR):
     img, height, width, channels, format, type, isf = prepareImage(image)
-    print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
+    #print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
     texture = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture)
     #glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, img)

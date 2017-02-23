@@ -22,6 +22,7 @@ import numpy as np
 from numpy.linalg import norm
 from numpy import dot, cross, matlib
 import OpenGL.GL as GL
+import ctypes
 
 class Shape(WorldObject):
     ''' Any world object that has a renderable surface
@@ -230,7 +231,7 @@ class PolySurface(Shape):
                 normal *= -1
         return normal
     @classmethod
-    def polySphere(cls, name, parent, subDivAxis=32, subDivHeight=16):
+    def polySphere(cls, name, parent, radius=1, subDivAxis=32, subDivHeight=16):
         numVertices = (subDivHeight - 2) * subDivAxis + 2
         numFaces = (subDivHeight - 2) * (subDivAxis - 1) * 2
         verts = matlib.zeros((0,3),dtype=np.float32)
@@ -238,12 +239,12 @@ class PolySurface(Shape):
             for i in xrange(subDivAxis):
                 theta = float(j)/(subDivHeight-1) * pi
                 phi = float(i)/(subDivAxis-1)  * pi * 2
-                x = sin(theta) * cos(phi)
-                y = cos(theta)
-                z = -sin(theta) * sin(phi)
+                x = sin(theta) * cos(phi) * radius
+                y = cos(theta) * radius
+                z = -sin(theta) * sin(phi) * radius
                 verts = np.append(verts, np.array([[x,y,z]]), axis=0)
-        verts = np.append(verts, np.array([[0,1,0]]), axis=0)
-        verts = np.append(verts, np.array([[0,-1,0]]), axis=0)
+        verts = np.append(verts, np.array([[0,radius,0]]), axis=0)
+        verts = np.append(verts, np.array([[0,-radius,0]]), axis=0)
         # normals = verts  # at least at initialization
         # faces is a list of 3 indicies in verts that make up each face
         faces = matlib.zeros((0,3), dtype=np.uint32)

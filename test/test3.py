@@ -51,7 +51,7 @@ def loadScene(renderStack,file=None):
     #renderStack.append(warp)
     return scene
 
-def addInput():
+def addInput(renderStack):
     ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=renderStack, direction=3)
     ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=renderStack, direction=2)
     ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=renderStack, direction=1)

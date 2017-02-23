@@ -17,40 +17,24 @@ __author__ = ('David Dunn')
 __version__ = '1.6'
 __all__ = ["SceneGraph", "Plug", "WorldObject"]
 
-import sys
+import sys, operator
 import numpy as np
-from numpy import dot, vdot, cross, matlib
-from numpy.linalg import norm
-from math import sqrt, sin, cos, pi, floor, ceil
 from itertools import chain
 if sys.version_info[0] == 2:
     from itertools import imap, izip_longest
 else:
     from itertools import zip_longest as izip_longest
     imap = map
-import operator 
-from operator import itemgetter
-from random import uniform
-#import OpenGL
-#OpenGL.ERROR_CHECKING = False      # Uncomment for 2x speed up
-#OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 import OpenGL.GL as GL
-import ctypes
 
 import xformMatrix as xm
 import io.obj as obj
-
-shadows=False
-epsilon=0.001
-reflectDepth=0
-reflectionsMax=1
-depth = 0
 
 class SceneGraph(object):
     ''' A top level object that houses everything in a scene '''
     def __init__(self, file=None):
         self._children = []
-        self.worldMatrix = matlib.identity(4)
+        self.worldMatrix = xm.eye(4)
         # could put the new light and new material members here - and keep track of them here rather than in the class
         # maybe a good place to store a dict of all the objects in the scene? - for searching and stuff
     def __iter__(self):
