@@ -16,7 +16,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import cv2
+import cv2, math
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
@@ -30,232 +30,131 @@ modelDir = './dGraph/test/data'
 
 def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''
-    switch = True   # crosseye rendering
-    #switch = False
-    IPD = .092
-    #IPD = -.030
-    
     backScene = dg.SceneGraph(file)
-    bstereoCam = dgc.StereoCamera('back', backScene, switch)
-    bstereoCam.setResolution((renderStack.width/2, renderStack.height))
-    bstereoCam.setTranslate(0.,0.,0.)
-    bstereoCam.setFOV(50.)
-    bstereoCam.IPD = IPD
-    bstereoCam.far = 10
-    renderStack.cameras.append(bstereoCam)
+    bCam = dgc.Camera('back', backScene)
+    bCam.setResolution((renderStack.width, renderStack.height))
+    bCam.setTranslate(0.,0.,0.)
+    bCam.setFOV(50.)
+    renderStack.cameras.append(bCam)
     cube = dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%modelDir)
-    cube.setScale(.2,.2,.2)
-    cube.setTranslate(0.,0.,-10.)
+    cube.setScale(.4,.4,.4)
+    cube.setTranslate(0.,0.,-2.)
     cube.setRotate(25.,65.,23.)
     renderStack.objects['cube'] = cube
-    #plane = dgs.PolySurface('plane', backScene, file = '%s/objects/wedge.obj'%modelDir)
-    #objects['plane'] = plane
-    #plane.setScale(.005,.005,.005)
-    #plane.setRotate(0.,180.,0.)
-    #plane.setTranslate(.0,.0,-10.)
-    teapot = dgs.PolySurface('teapot', backScene, file = '%s/teapot.obj'%modelDir)
-    teapot.setScale(.1,.1,.1)
-    teapot.setTranslate(.0,-.05,-4.)
+    
+    frontScene = dg.SceneGraph(file)
+    fCam = dgc.Camera('front', frontScene)
+    fCam.setResolution((renderStack.width, renderStack.height))
+    fCam.translate.connect(bCam.translate)
+    fCam.rotate.connect(bCam.rotate)
+    fCam.setFOV(50.)
+    teapot = dgs.PolySurface('teapot', frontScene, file = '%s/teapot.obj'%modelDir)
+    teapot.setScale(.4,.4,.4)
+    teapot.setTranslate(.5,-.2,-1.5)
     teapot.setRotate(5.,0.,0.)
     renderStack.objects['teapot'] = teapot
     
-    #frontScene = dg.SceneGraph(file)
-    #stereoCam = dgc.StereoCamera('front', frontScene, switch)
-    #stereoCam.setResolution((renderStack.width/2, renderStack.height))
-    #stereoCam.translate.connect(bstereoCam.translate)
-    #stereoCam.rotate.connect(bstereoCam.rotate)
-    #stereoCam.setFOV(50.)
-    #stereoCam.IPD.connect(bstereoCam.IPD)
-    #sphere = dgs.PolySurface.polySphere('sphere',frontScene)
-    #sphere.setScale(.05,.05,.05)
-    #sphere.setTranslate(-.05,0.,-6.)
-    #renderStack.objects['sphere'] = sphere
-    
-    #material1 = dgm.Lambert('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
     material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
     for obj in renderStack.objects.itervalues():
         obj.setMaterial(material1)
     
-    imageScale = renderStack.display.resolution[0]/(renderStack.width/2.)
-    pixelDiameter = imageScale*renderStack.display.pixelSize()[0]
+    renderStack.focus = 2.
+    renderStack.focusChanged = False
+    imageScale = renderStack.displays[0].width/(renderStack.width)
+    pixelDiameter = imageScale*renderStack.displays[0].pixelSize()[0]
+    kernel = im.getPSF(renderStack.focus, 1.5, aperture=.004, pixelDiameter=pixelDiameter)
     ftBlur = dgm.warp.Convolution('ftBlur')
-    kernel = im.getPSF(10., 8., aperture=.004, pixelDiameter=pixelDiameter)
     ftBlur.kernel = kernel
-    #stereoCam.rightStackAppend(ftBlur)
+    renderStack.shaders['ftBlur'] = ftBlur
     
     bkBlur = dgm.warp.Convolution('bkBlur')
-    kernel = im.getPSF(8., 10., aperture=.004, pixelDiameter=pixelDiameter)
+    kernel = im.getPSF(renderStack.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
     bkBlur.kernel = kernel
-    #bstereoCam.leftStackAppend(bkBlur)
+    renderStack.shaders['bkBlur'] = bkBlur
 
-    #over = dgs.Over('over')
-    #over.overStackAppend(stereoCam.left)
-    #over.underStackAppend(bstereoCam.left)
-    #over.overStackAppend(stereoCam)
-    #over.underStackAppend(bstereoCam)
-    #renderStack.append(over)
-    renderStack.append(bstereoCam)
-
-    #warp = dgs.Lookup('lookup', 'warpWorking.png')
-    #renderStack.append(warp)
+    over = dgm.warp.Over('over')
+    over.overStackAppend(fCam)
+    over.overStackAppend(ftBlur)
+    over.underStackAppend(bCam)
+    over.underStackAppend(bkBlur)
+    renderStack.append(over)
     return True                                                         # Initialization Successful
 
-def writeImages(buffer):
-    '''Write Images (three buffers for each):
-        Standard Blur (What you see is what you get):   [0-3]
-        Deconvolution Blur:                             [4-6]
-        Band Stop Filter:                               [7-9]
-    '''
-    correctShift = False
-    global renderStack, cameras, width, height, display, nsr, aperture
-    if buffer <= 9:     # Standard Blur
-        image = dgt.readFramebuffer(0,0,width,height,GL.GL_RGB)
-        # split left and right eye
-        left = image[:,:width/2]
-        right = image[:,width/2:]
-    elif buffer <= 6:   # Deconvolution Blur
-        images = []
-        depths = [objects['teapot'].translate[2],objects['sphere'].translate[2]]
-        for camera in cameras:
-            camera.stackSuspend()
-            myStack = [camera]
-            myStack.pop().render(width, height, myStack)
-            images.append(dgt.readFramebuffer(0,0,width,height,GL.GL_RGBA,GL.GL_FLOAT))
-            camera.stackResume()
-        # This is going to be hacky - find a better way of getting image/focal depth
-        composited = [np.zeros_like(images[0][:,width/2:,:3]),np.zeros_like(images[0][:,:width/2,:3])]
-        imageScale = display.resolution[0]/(width/2.)
-        pixelDiameter = imageScale*display.pixelSize()[0]
-        for idx, image in enumerate(images):
-            imageDepth = depths[idx]
-            lf = image[:,:width/2]
-            rt = image[:,width/2:]
-            for dex, side in enumerate([rt,lf]):
-                focusDepth = depths[dex]
-                if imageDepth != focusDepth:
-                    psf = im.getPSF(abs(focusDepth), abs(imageDepth), aperture=aperture, pixelDiameter=pixelDiameter)
-                    topAlpha = im.deconvolveWiener(side[:,:,3],psf,nsr)[:,:,0]
-                    topColor =  im.deconvolveWiener(cv2.multiply(side[:,:,:3],np.dstack((side[:,:,3],side[:,:,3],side[:,:,3]))),psf,nsr)
-                else:
-                    topAlpha = side[:,:,3]
-                    topColor = side[:,:,:3]
-                composited[dex], trash = im.over(topColor, topAlpha, composited[dex])
-        scale = float(im.getBitDepthScaleFactor('uint8'))
-        right = np.uint8(composited[0]*scale)
-        left = np.uint8(composited[1]*scale)
-    else:               # Band Stop filter
+def animateScene(renderStack, frame):
+    # infinity rotate:
+    y = math.sin(frame*math.pi/60)
+    x = math.cos(frame*math.pi/30)/4
+    for obj in renderStack.objects.itervalues():
+        obj.rotate += np.array((x,y,0.))
+    # update focus:
+    if renderStack.focusChanged:
+        imageScale = renderStack.displays[0].width/(renderStack.width)
+        pixelDiameter = imageScale*renderStack.displays[0].pixelSize()[0]
+        kernel = im.getPSF(renderStack.focus, 1.5, aperture=.004, pixelDiameter=pixelDiameter)
+        renderStack.shaders['ftBlur'].kernel = kernel
+        kernel = im.getPSF(renderStack.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
+        renderStack.shaders['bkBlur'].kernel = kernel
+        renderStack.focusChanged = False
+    
+def addInput(renderStack):
+    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=renderStack, direction=3)
+    ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=renderStack, direction=2)
+    ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=renderStack, direction=1)
+    ui.add_key_callback(arrowKey, ui.KEY_DOWN, renderStack=renderStack, direction=0)
+
+def arrowKey(window,renderStack,direction):
+    if direction == 3:    # print "right"
         pass
-    # scale the right eye
-    #right = im.scaleImgDist(10., 8., right, (right.shape[1],right.shape[0]), 1.0)
-    #interp = cv2.INTER_NEAREST
-    #right = cv2.resize(right, tuple([int(round(i*1.05)) for i in (left.shape[1],left.shape[0])]), 0, 0,interp)
-    #right = im.cropImg(right, (left.shape[0],left.shape[1]))
-    if correctShift:
-        # calculate pixel shift to display correct IPD
-        imageScale = display.resolution[0]/(width/2.)
-        shift = int(round((display.size[0]/2. + display.bezel[0] - cameras[0].IPD/2.) / (imageScale*display.pixelSize()[0])))  
-        left = np.roll(left, shift, 1)            # correct images for display ipd
-        right = np.roll(right, -shift, 1)
-    #buffer = 'calibration'
-    cv2.imwrite('./leftRenders/output-%s.png'%buffer, left)
-    cv2.imwrite('./rightRenders/output-%s.png'%buffer, right)
-    print("Wrote files to output-%s.png"%buffer)
-    cv2.imshow('Left output-%s.png'%buffer,left)
-    cv2.waitKey()
-    
-def drawGLScene(renderStack):
-    ''' Draw everything in stereo '''
+    elif direction == 2:    # print "left"
+        pass
+    elif direction == 1:      # print 'up'
+        renderStack.focus += .1
+        renderStack.focusChanged = True
+        print "Current focal depth = %s"%renderStack.focus
+    else:                   # print "down"
+        renderStack.focus -= .1
+        renderStack.focusChanged = True
+        print "Current focal depth = %s"%renderStack.focus
+
+def drawScene(renderStack):
+    ''' Draw everything in renderStack '''
     myStack = list(renderStack)                                     # copy the renderStack so we can pop and do it again next frame
-    #myStack = renderStack
     temp = myStack.pop()
-    temp.render(renderStack.width, renderStack.height, myStack)                    # Render our warp to screen
-    #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
-    #data = np.reshape(data,(height,width,3))
-    #cv2.imshow('%s:%s'%('final frame',temp._name),data)
-    #cv2.waitKey()
+    temp.render(renderStack.width, renderStack.height, myStack)     # Render our stack to screen
 
-    
-    #for cam in cameras:
-    #    cam.far = frameCount % 1000
-    '''
-    for obj in objects.itervalues():
-        obj.rotate += (0.,2.,0.)
-    
-    # Write out our animation
-    image = dgt.readFramebuffer(0,0,width,height,GL.GL_RGB)
-    # split left and right eye
-    left = image[:,:width/2]
-    right = image[:,width/2:]
-    cv2.imwrite('./Renders/%04d_left.png'%frameCount, left)
-    cv2.imwrite('./Renders/%04d_right.png'%frameCount, right)
-    if frameCount >= 180:
-        sys.exit ()
-    '''
-    # Timing code
-    #endTime = time()
-    #frameCount+=1
-    #elapsed = endTime-startTime
-    #fps = frameCount / elapsed
-
-''' In order to do input with mouse and keyboard, we need to setup a state machine with 
-states switches from mouse presses and releases and certain key presses 
-- maybe enable a glfwSetCursorPosCallback when button is pressed, or
-- more likely just poll cursor position since you can't disable a callback'''
-def arrowKey(window,direction):
-    if direction == 3:
-        print "up"
-    elif direction == 2:
-        print "right"
-    elif direction == 1:
-        print "left"
-    else:
-        print "down"
-
-def runTest():
+def setup():
     renderStack = ui.RenderStack()
-    renderStack.display = ui.Display()
-    nsr, aperture = 25, .001  # noise to signal for deconvolution
-    winName = 'Binocular Depth Fusion'
-    # Print message to console, and kick off the main to get it rolling.
-    print("Hit ESC key to quit.")
-    # pass arguments to init
+    renderStack.displays.append(ui.Display(resolution=(1920,1200),size=(.518,.324)))
     ui.init()
-    #
-    # Timing code
-    #frameCount = 0
-    #startTime = time()
-    # do a raster by hand verification
-    #frame, depth = cameras[0].raster(1)
-    #cv2.namedWindow(winName)
-    #cv2.imshow(winName, frame)
-    #cv2.imshow('%s Depth'%winName, depth)
-    #cv2.waitKey()
     offset = (1920,0)
-    mainWindow = renderStack.addWindow(ui.open_window("OpenGL_noMipMap", offset[0], offset[1], renderStack.display.width, renderStack.display.height))
+    mainWindow = renderStack.addWindow(ui.open_window('Render Stack Test', offset[0], offset[1], renderStack.displays[0].width, renderStack.displays[0].height))
     if not mainWindow:
         ui.terminate()
         exit(1)
     x, y = ui.get_window_pos(mainWindow)
     width, height = ui.get_window_size(mainWindow)
     ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
-    ui.add_key_callback(arrowKey, ui.KEY_UP, direction=3)
-    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, direction=2)
-    ui.add_key_callback(arrowKey, ui.KEY_LEFT, direction=1)
-    ui.add_key_callback(arrowKey, ui.KEY_DOWN, direction=0)
-    ui.make_context_current(mainWindow)
     dg.initGL()
-
-    loadScene(renderStack)
-    #loadCrosses(renderStack)
+    scene = loadScene(renderStack)
     renderStack.graphicsCardInit()
+    return renderStack, scene, [mainWindow]
+
+def runLoop(renderStack, mainWindow):
+    # Print message to console, and kick off the loop to get it rolling.
+    print("Hit ESC key to quit.")
+    print("Use Up/Down to change focal depth.")
+    frame = 0
     while not ui.window_should_close(mainWindow):
         ui.make_context_current(mainWindow)
-        drawGLScene(renderStack)
+        drawScene(renderStack)
         ui.swap_buffers(mainWindow)
         ui.poll_events()
-        #ui.wait_events()
+        animateScene(renderStack, frame)
+        frame += 1
     ui.terminate()
     exit(0)
 
 if __name__ == '__main__':
-    runTest()
+    renderStack, scene, windows = setup()
+    addInput(renderStack)
+    runLoop(renderStack, windows[0])

@@ -149,6 +149,8 @@ void main() {
             #print '%s clearing. %s'%(self.__class__, self._name)
             GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glViewport(posWidth, 0, width, height)                               # set the viewport to the portion we are drawing
+        if self.shader is None:                                                 # make sure our shader is compiled
+            self.compileShader()
         GL.glUseProgram(self.shader)
         for idx in range(self._numWarp):                                        # attach our warp textures first
             tex, frameBuffer = self._warpList[idx] 
@@ -201,6 +203,13 @@ class Convolution(Warp):
         super(Convolution, self).__init__(name, **kwargs)
         self.kernel = np.matrix([[1.]], dtype=np.float32)
     @property
+    def kernel(self):
+        return self._kernel
+    @kernel.setter
+    def kernel(self, value):
+        self._kernel = value
+        self.shader = None
+    @property
     def fragmentShader(self):
         sStep = 1./self._width
         tStep = 1./self._height
@@ -211,9 +220,9 @@ class Convolution(Warp):
         code.append('layout (location = 0) out vec4 FragColor;\n')
         code.append('void main() {\n')
         code.append('    FragColor = vec4(0f,0f,0f,0f);\n')
-        shape = self.kernel.shape
+        shape = self._kernel.shape
         #print(shape[0]*shape[1])
-        it = np.nditer(self.kernel, flags=['multi_index'])
+        it = np.nditer(self._kernel, flags=['multi_index'])
         while not it.finished:
             s = sStep*(it.multi_index[1]-shape[1]/2.)
             t = tStep*(it.multi_index[0]-shape[0]/2.)

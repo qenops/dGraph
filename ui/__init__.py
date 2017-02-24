@@ -36,6 +36,7 @@ class RenderStack(list):
         self._height = None
         self.cameras = []       # just for convinience if wanted
         self.objects = {}       # just for convinience if wanted
+        self.shaders = {}       # just for convinience if wanted
         self.displays = []      # just for convinience if wanted
     @property
     def width(self):

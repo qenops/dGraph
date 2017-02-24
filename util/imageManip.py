@@ -157,9 +157,11 @@ def getPSF(focalDist, blurDist, aperture=None, pixelDiameter=.00033, **kwargs):
     # calculate diameter in pixels
     CoC = getCoC(aperture, focalDist, blurDist)  # this is diameter on the focal plane - but we are convolving, so - should be same on both if we have already scaled them?
     d = CoC/pixelDiameter                        # this is size of pixels at focal plane
-    tophat = circle(round(d+3), round(d+3), d)
-    if np.sum(tophat) == 0:
-        tophat[round(d/2),round(d/2)] = [True]
+    tophat = circle(int(round(d))/2*2+1, int(round(d))/2*2+1, d)
+    #if np.sum(tophat) == 0:
+    #    tophat[round(d/2),round(d/2)] = [True]
+    tophat = tophat[:,~np.all(tophat == 0, axis=0)]   # remove zero columns
+    tophat = tophat[~np.all(tophat == 0, axis=1)]     # remove zero rows
     kernel = 1./np.sum(tophat)*tophat
     return kernel
     
