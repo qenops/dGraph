@@ -16,7 +16,6 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import cv2
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
