@@ -2,7 +2,7 @@
 '''Test for an openGL based stereo renderer - testing render stack features (compositing via over shader and blurring via convolution shader)
 
 David Dunn
-Feb 2017 - converted to test suite
+Feb 2017 - converted to test suite - failing depth test for render to framebuffers
 
 www.qenops.com
 
@@ -26,7 +26,7 @@ import dGraph.materials as dgm
 import dGraph.materials.warp
 import dGraph.util.imageManip as im
 
-modelDir = './dGraph/test/data'
+MODELDIR = './dGraph/test/data'
 
 def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''
@@ -36,7 +36,7 @@ def loadScene(renderStack,file=None):
     bCam.setTranslate(0.,0.,0.)
     bCam.setFOV(50.)
     renderStack.cameras.append(bCam)
-    cube = dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%modelDir)
+    cube = dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%MODELDIR)
     cube.setScale(.4,.4,.4)
     cube.setTranslate(0.,0.,-2.)
     cube.setRotate(25.,65.,23.)
@@ -48,7 +48,7 @@ def loadScene(renderStack,file=None):
     fCam.translate.connect(bCam.translate)
     fCam.rotate.connect(bCam.rotate)
     fCam.setFOV(50.)
-    teapot = dgs.PolySurface('teapot', frontScene, file = '%s/teapot.obj'%modelDir)
+    teapot = dgs.PolySurface('teapot', frontScene, file = '%s/teapot.obj'%MODELDIR)
     teapot.setScale(.4,.4,.4)
     teapot.setTranslate(.5,-.2,-1.5)
     teapot.setRotate(5.,0.,0.)

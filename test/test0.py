@@ -1,5 +1,5 @@
 #!/usr/bin/python
-'''Test for an openGL based renderer - testing scene graph features (parenting, dirty propigation, animation)
+'''Test for an openGL based renderer - testing basic openGL rasteriziation
 
 David Dunn
 Feb 2017 - created test suite
@@ -36,62 +36,28 @@ def loadScene(renderStack,file=None):
     cam.setTranslate(0.,0.,0.)
     cam.setFOV(50.)
     renderStack.cameras.append(cam)
-    sun = dgs.PolySurface.polySphere('sun', scene, radius=.2)
-    sun.setTranslate(0.,0.,-2.)
-    sun.setRotate(10.,0.,0.)
-    renderStack.objects['sun'] = sun
-    sunMaterial = dgm.Lambert('sunMaterial',ambient=(1,1,0), amb_coeff=1., diffuse=(0,0,0), diff_coeff=0)
-    sun.setMaterial(sunMaterial)
-    mercury = dgs.PolySurface.polySphere('mercury', sun, radius=.01)
-    mercury.setTranslate(0.3,0.,0.)
-    renderStack.objects['mercury'] = mercury
-    mercuryMaterial = dgm.Lambert('mercuryMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(1.,.5,.3), diff_coeff=1)
-    mercury.setMaterial(mercuryMaterial)
-    venus = dgs.PolySurface.polySphere('venus', sun, radius=.028)
-    venus.setTranslate(0.425,0.,0.)
-    renderStack.objects['venus'] = venus
-    venusMaterial = dgm.Lambert('venusMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(1.,.6,.6), diff_coeff=1)
-    venus.setMaterial(venusMaterial)
-    earth = dgs.PolySurface.polySphere('earth', sun, radius=.03)
-    earth.setTranslate(0.6,0.,0.)
-    earth.setRotate(0.,0.,15.)
-    renderStack.objects['earth'] = earth
-    earthMaterial = dgm.Lambert('earthMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(.25,.41,.879), diff_coeff=1)
-    earth.setMaterial(earthMaterial)
-    moon = dgs.PolySurface.polySphere('moon', earth, radius=.005)
-    moon.setTranslate(0.075,0.,0.)
-    renderStack.objects['moon'] = moon
-    moonMaterial = dgm.Lambert('moonMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(.7,.7,.7), diff_coeff=1)
-    moon.setMaterial(moonMaterial)
-    mars = dgs.PolySurface.polySphere('mars', sun, radius=.015)
-    mars.setTranslate(0.8,0.,0.)
-    renderStack.objects['mars'] = mars
-    marsMaterial = dgm.Lambert('marsMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(.8,.2,.2), diff_coeff=1)
-    mars.setMaterial(marsMaterial)
-    jupiter = dgs.PolySurface.polySphere('jupiter', sun, radius=.1)
-    jupiter.setTranslate(1.2,0.,0.)
-    renderStack.objects['jupiter'] = jupiter
-    jupiterMaterial = dgm.Lambert('jupiterMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(.867,.71875,.527), diff_coeff=1)
-    jupiter.setMaterial(jupiterMaterial)
+    teapot = dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR)
+    teapot.setScale(.4,.4,.4)
+    teapot.setTranslate(0.,-.20,-1.)
+    teapot.setRotate(0.,0.,0.)
+    renderStack.objects['teapot'] = teapot
+
+    material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
+    for obj in renderStack.objects.itervalues():
+        obj.setMaterial(material1)
+
     renderStack.append(cam)
-    return True                                                         # Initialization Successful
+    #warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0020.npy'%MODELDIR)
+    #renderStack.append(warp)
+    return scene
 
 def animateScene(renderStack, frame):
     ''' Create motion in our scene '''
-    #          name:    (distance,  orbit,     rotation )
-    speeds = {'mercury':(0.3,       87.969,     58.646  ),
-              'venus':  (0.425,    224.7,      243      ),
-              'earth':  (0.6,      365.2564,     1      ),
-              'moon':   (0.075,     28,         28      ),
-              'mars':   (0.8,      687,          1.03   ),
-              'jupiter':(1.2,     4332.59,       0.4135 )} 
-    for k, v in renderStack.objects.iteritems():
-        if k in speeds:
-            dist, orbit, rot = speeds[k]
-            # add rot when we have textures -  but will mess up children
-            x =  math.cos(math.pi/2/orbit*frame) * dist
-            z =  math.sin(math.pi/2/orbit*frame) * dist
-            v.translate = np.array((x,0.,z))
+    # infinity rotate:
+    y = 1
+    x = math.cos(frame*math.pi/60)
+    for obj in renderStack.objects.itervalues():
+        obj.rotate += np.array((x,y,0.))
     
 def drawGLScene(renderStack):
     ''' Draw everything in renderStack '''
