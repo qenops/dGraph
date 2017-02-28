@@ -16,6 +16,7 @@ from OpenGL.GL import shaders
 from OpenGL.GL import *
 import cv2
 import os
+import dGraph as dg
 import dGraph.util.imageManip as dgim
 
 # Get numchannels from format:
@@ -144,10 +145,16 @@ def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filt
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    # create a renderbuffer object to store depth info
+    depthBuffer = glGenRenderbuffers(1)
+    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer)
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height)
+    glBindRenderbuffer(GL_RENDERBUFFER, 0)
     # setup frame buffer
-    frameBuffer = glGenFramebuffers(1)                                                                  # Create frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                   # Bind our frame buffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)        # Attach texture to frame buffer
+    frameBuffer = glGenFramebuffers(1)                                                              # Create frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                  # Bind our frame buffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)         # Attach texture to frame buffer
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer)    # Attach render buffer to depth buffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
     glBindTexture(GL_TEXTURE_2D, 0)
     return texture, (frameBuffer,width,height)

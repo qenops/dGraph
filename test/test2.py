@@ -66,6 +66,9 @@ def loadScene(renderStack,file=None):
     ftBlur = dgm.warp.Convolution('ftBlur')
     ftBlur.kernel = kernel
     renderStack.shaders['ftBlur'] = ftBlur
+    ftBlur._width = renderStack.width
+    ftBlur._height = renderStack.height
+    print ftBlur.fragmentShader
     
     bkBlur = dgm.warp.Convolution('bkBlur')
     kernel = im.getPSF(renderStack.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
