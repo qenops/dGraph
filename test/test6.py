@@ -72,7 +72,7 @@ def loadScene(renderStacks,file=None):
 
     material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
     teapot.setMaterial(material1)
-    #for obj in renderStack.objects.itervalues():
+    #for obj in renderStack.objects.values():
     #    obj.setMaterial(material1)
 
     renderStacks[0].append(cam.right)

@@ -55,7 +55,7 @@ def loadScene(renderStack,file=None):
     renderStack.objects['teapot'] = teapot
     
     material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-    for obj in renderStack.objects.itervalues():
+    for obj in renderStack.objects.values():
         obj.setMaterial(material1)
     
     renderStack.focus = 2.
@@ -84,7 +84,7 @@ def animateScene(renderStack, frame):
     # infinity rotate:
     y = math.sin(frame*math.pi/60)
     x = math.cos(frame*math.pi/30)/4
-    for obj in renderStack.objects.itervalues():
+    for obj in renderStack.objects.values():
         obj.rotate += np.array((x,y,0.))
     # update focus:
     if renderStack.focusChanged:
@@ -110,11 +110,11 @@ def arrowKey(window,renderStack,direction):
     elif direction == 1:      # print 'up'
         renderStack.focus += .1
         renderStack.focusChanged = True
-        print "Current focal depth = %s"%renderStack.focus
+        print("Current focal depth = %s"%renderStack.focus)
     else:                   # print "down"
         renderStack.focus -= .1
         renderStack.focusChanged = True
-        print "Current focal depth = %s"%renderStack.focus
+        print("Current focal depth = %s"%renderStack.focus)
 
 def drawScene(renderStack):
     ''' Draw everything in renderStack '''
@@ -126,7 +126,7 @@ def setup():
     renderStack = ui.RenderStack()
     renderStack.displays.append(ui.Display(resolution=(1920,1200),size=(.518,.324)))
     ui.init()
-    offset = (1920,0)
+    offset = (-1920,0)
     mainWindow = renderStack.addWindow(ui.open_window('Render Stack Test', offset[0], offset[1], renderStack.displays[0].width, renderStack.displays[0].height))
     if not mainWindow:
         ui.terminate()

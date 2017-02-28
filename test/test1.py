@@ -85,7 +85,7 @@ def animateScene(renderStack, frame):
               'moon':   (0.075,     28,         28      ),
               'mars':   (0.8,      687,          1.03   ),
               'jupiter':(1.2,     4332.59,       0.4135 )} 
-    for k, v in renderStack.objects.iteritems():
+    for k, v in renderStack.objects.items():
         if k in speeds:
             dist, orbit, rot = speeds[k]
             # add rot when we have textures -  but will mess up children
@@ -116,10 +116,10 @@ def arrowKey(window,renderStack,direction):
         pass
     elif direction == 1:      # print 'up'
         renderStack.objects['sun'].rotate += np.array((5.,0.,0.))
-        print renderStack.objects['sun'].rotate
+        print(renderStack.objects['sun'].rotate)
     else:                   # print "down"
         renderStack.objects['sun'].rotate -= np.array((5.,0.,0.))
-        print renderStack.objects['sun'].rotate
+        print(renderStack.objects['sun'].rotate)
 
 def drawScene(renderStack):
     ''' Render the stack '''
@@ -131,7 +131,7 @@ def setup():
     renderStack = ui.RenderStack()
     renderStack.displays.append(ui.Display(resolution=(1920,1200)))
     ui.init()
-    offset = (1920,0)
+    offset = (0,0)
     mainWindow = renderStack.addWindow(ui.open_window('Scene Graph Test', offset[0], offset[1], renderStack.displays[0].width, renderStack.displays[0].height))
     if not mainWindow:
         ui.terminate()

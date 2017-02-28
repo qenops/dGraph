@@ -154,13 +154,13 @@ float lambert(vec3 N, vec3 L)
 void main()
 {
   Light light;
-  light.position = vec3(2f,3f,4f);
-  light.color = vec3(%sf, %sf, %sf);
+  light.position = vec3(2.0f,3.0f,4.0f);
+  light.color = vec3(%s, %s, %s);
 
   vec3 L = normalize(light.position.xyz - fragPosition.xyz);   
   vec3 Idiff = light.color * lambert(fragNormal,L);  
   Idiff = clamp(Idiff, 0.0, 1.0); 
-  Idiff = Idiff + vec3(%sf, %sf, %sf);
+  Idiff = Idiff + vec3(%s, %s, %s);
   FragColor = vec4(Idiff, 1.0);
   //FragColor = vec4(fragNormal, 1.0);
 }'''

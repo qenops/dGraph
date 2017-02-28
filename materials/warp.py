@@ -30,7 +30,8 @@ class Warp(object):
             if not isinstance(cls._warpList[name],cls):     # do some type checking to prevent mixed results
                 raise TypeError('Material of name "%s" already exists and is type: %s'%(name, type(cls._materialList[name])))
         else:
-            cls._warpList[name] = super(Warp, cls).__new__(cls, name, *args, **kwargs)
+            cls._warpList[name] = super(Warp, cls).__new__(cls)
+            cls._warpList[name].__init__(name, *args, **kwargs) # this is ugly. __new__ should not be used for this at all
         return cls._warpList[name]
     def __init__(self, name, **kwargs):      
         self._name = name
@@ -46,7 +47,7 @@ in vec3 position;
 in vec2 texCoord;
 out vec2 fragTexCoord;
 void main() {
-    gl_Position = vec4(position,1f);
+    gl_Position = vec4(position,1.0f);
     fragTexCoord = texCoord;
 }
 '''
@@ -86,7 +87,7 @@ void main() {
         self._warpList = []                  # clear textures for resizing
         if not hasattr(self, 'vertexArray'):
             self.setupGeo()
-        for i in xrange(self._numWarp):
+        for i in range(self._numWarp):
             tex, bufferData = dgt.createWarp(self._width,self._height)
             frameBuffer, w, h = bufferData 
             self._warpList.append((tex, frameBuffer))            # add to our list of warps
@@ -184,17 +185,17 @@ uniform sampler2D tex0;
 // Force location to 0 to ensure its the first output
 layout (location = 0) out vec4 FragColor;
 void main() {
-	float sStep = 1f/512f;
-	float tStep = 1f/512f;
-    vec4 myColor = texture2D(tex0, fragTexCoord + vec2(-sStep, -tStep))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(-sStep, 0))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(-sStep, tStep))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, -tStep))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, 0))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, tStep))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, -tStep))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, 0))/9f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, tStep))/9f;
+	float sStep = 1.0f/512.0f;
+	float tStep = 1.0f/512.0f;
+    vec4 myColor = texture2D(tex0, fragTexCoord + vec2(-sStep, -tStep))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(-sStep, 0))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(-sStep, tStep))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, -tStep))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, 0))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, tStep))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, -tStep))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, 0))/9.0f;
+	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, tStep))/9.0f;
 	FragColor = myColor;
 }
 '''
@@ -219,14 +220,14 @@ class Convolution(Warp):
         code.append('// Force location to 0 to ensure its the first output\n')
         code.append('layout (location = 0) out vec4 FragColor;\n')
         code.append('void main() {\n')
-        code.append('    FragColor = vec4(0f,0f,0f,0f);\n')
+        code.append('    FragColor = vec4(0,0,0,0);\n')
         shape = self._kernel.shape
         #print(shape[0]*shape[1])
         it = np.nditer(self._kernel, flags=['multi_index'])
         while not it.finished:
             s = sStep*(it.multi_index[1]-shape[1]/2.)
             t = tStep*(it.multi_index[0]-shape[0]/2.)
-            code.append('    FragColor = FragColor + texture2D(tex0, fragTexCoord + vec2(%s, %s))*%sf;\n'%(s, t, it[0]))
+            code.append('    FragColor = FragColor + texture2D(tex0, fragTexCoord + vec2(%s, %s))*%s;\n'%(s, t, it[0]))
             it.iternext()
         code.append('}')
         return '%s%s'%(_shaderHeader,''.join(code))

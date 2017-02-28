@@ -113,7 +113,7 @@ def keyPressed(*args):
         print('aperture = %s'%aperture)
     for cam in cameras:
         cam.IPD += ipd
-    for name, obj in objects.iteritems():
+    for name, obj in objects.items():
         obj.translate += translate
         obj.rotate += rotate
     if isinstance(args[0], basestring) and args[0].isdigit():
