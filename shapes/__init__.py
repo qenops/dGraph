@@ -16,7 +16,7 @@ __all__ = ["Shape", "PolySurface"]
 
 from dGraph import *
 import dGraph.materials as dgm
-from dGraph.io import obj
+from dGraph.dio import obj
 from math import sin, cos, pi
 import numpy as np
 from numpy.linalg import norm
@@ -157,7 +157,7 @@ class PolySurface(Shape):
             # Build our actual vertex array by getting the positions, normals and uvs from our unique indicies
             vertsGL = self._verts[fullVerts%maxSize].getA1()
             uvsGL = np.zeros((0),dtype=np.float32) if len(self._uvs.A1) < 3 else self._uvs[(fullVerts/maxSize)%maxSize].getA1()
-            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[fullVerts/(maxSize**2)].getA1()
+            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[(fullVerts/(maxSize**2)).astype(fullVerts.dtype)].getA1()
             return np.concatenate((vertsGL,uvsGL,normsGL)), faces.astype(np.uint32), [len(vertsGL),len(uvsGL),len(normsGL)]
     def generateVBO(self):
         ''' generates OpenGL VBO and VAO objects '''

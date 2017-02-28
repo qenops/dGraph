@@ -42,7 +42,8 @@ class Material(object):
             if not isinstance(cls._materialList[name],cls):     # do some type checking to prevent mixed results
                 raise TypeError('Material of name "%s" already exists and is type: %s'%(name, type(cls._materialList[name])))
         else:
-            cls._materialList[name] = super(Material, cls).__new__(cls, name, *args, **kwargs)
+            cls._materialList[name] = super(Material, cls).__new__(cls)
+            cls._materialList[name].__init__(name, *args, **kwargs) # this is ugly. __new__ should not be used for this at all
         return cls._materialList[name]
     def __init__(self, name, ambient=(.3,.3,.3), amb_coeff=1, **kwargs):      
         self._name = name
@@ -110,10 +111,10 @@ void main()
 {
   //FragColor = fragPosition;
   //FragColor = vec4(fragNormal, 1.0);
-  //FragColor = vec4(fragPosition.z/-10,fragPosition.z/-10,fragPosition.z/-10,1f);
-  //FragColor = vec4(gl_FragCoord.z*1000,gl_FragCoord.z*1000,gl_FragCoord.z*1000,1f);
+  //FragColor = vec4(fragPosition.z/-10,fragPosition.z/-10,fragPosition.z/-10,1.0f);
+  //FragColor = vec4(gl_FragCoord.z*1000,gl_FragCoord.z*1000,gl_FragCoord.z*1000,1.0f);
   int ID = gl_PrimitiveID + 1;
-  FragColor = vec4(mod(ID,15)/15,mod(ID,7)/7,mod(ID,3)/3, 1f);
+  FragColor = vec4(mod(ID,15)/15,mod(ID,7)/7,mod(ID,3)/3, 1.0f);
 }'''
     @property
     def fragmentShader(self):

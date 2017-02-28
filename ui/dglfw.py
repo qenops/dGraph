@@ -24,7 +24,7 @@ def init():
         exit(1)
 
 def error_callback(error, description):
-    print("Error: %s\n", description)
+    print("Error: %s\n" % description)
 
 def add_key_callback(function, key, action=glfw.PRESS, mods=0x0000, *args, **kwargs):
     ''' key callbacks are stored as dict[(key, action, mods)] = (function, args, kwargs) 
@@ -45,7 +45,7 @@ def find_joysticks():
             for i in range(axes[1]):
                 sum += axes[0][i]
             if abs(sum) > .000001:
-                print 'Found Joy %d'%(joy+1) 
+                print('Found Joy %d'%(joy+1))
                 joylist.append(joy)
     return joylist
 

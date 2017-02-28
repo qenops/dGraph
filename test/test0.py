@@ -43,7 +43,7 @@ def loadScene(renderStack,file=None):
     renderStack.objects['teapot'] = teapot
 
     material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-    for obj in renderStack.objects.itervalues():
+    for obj in renderStack.objects.values():
         obj.setMaterial(material1)
 
     renderStack.append(cam)
@@ -56,7 +56,7 @@ def animateScene(renderStack, frame):
     # infinity rotate:
     y = 1
     x = math.cos(frame*math.pi/60)
-    for obj in renderStack.objects.itervalues():
+    for obj in renderStack.objects.values():
         obj.rotate += np.array((x,y,0.))
     
 def drawGLScene(renderStack):
@@ -81,11 +81,11 @@ def arrowKey(window,renderStack,direction):
     elif direction == 2:    # print "left"
         pass
     elif direction == 1:      # print 'up'
-        renderStack.objects['sun'].rotate += np.array((5.,0.,0.))
-        print renderStack.objects['sun'].rotate
+        renderStack.objects['teapot'].rotate += np.array((5.,0.,0.))
+        print(renderStack.objects['teapot'].rotate)
     else:                   # print "down"
-        renderStack.objects['sun'].rotate -= np.array((5.,0.,0.))
-        print renderStack.objects['sun'].rotate
+        renderStack.objects['teapot'].rotate -= np.array((5.,0.,0.))
+        print(renderStack.objects['teapot'].rotate)
 
 def drawScene(renderStack):
     ''' Render the stack '''
@@ -97,7 +97,7 @@ def setup():
     renderStack = ui.RenderStack()
     renderStack.displays.append(ui.Display(resolution=(1920,1200)))
     ui.init()
-    offset = (1920,0)
+    offset = (0,0)
     mainWindow = renderStack.addWindow(ui.open_window('Scene Graph Test', offset[0], offset[1], renderStack.displays[0].width, renderStack.displays[0].height))
     if not mainWindow:
         ui.terminate()
