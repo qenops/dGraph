@@ -454,5 +454,5 @@ class StereoCamera(WorldObject):
         for idx, stack in enumerate(split):                          # Do left stack then right stack
             #print stack
             temp=stack.pop()
-            temp.render(width/2, height, stack, parentFrameBuffer, posWidth=idx*width/2, clear=not idx)   # Go up the render stack to get our texture
+            temp.render(int(width/2), height, stack, parentFrameBuffer, posWidth=int(idx*width/2), clear=not idx)   # Go up the render stack to get our texture
         #print '%s leaving render. %s'%(self.__class__, self._name)

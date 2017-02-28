@@ -63,7 +63,7 @@ def loadScene(renderStack, file=None):
         np.array((.2,.2,-10.)),
     ]
     for idx, position in enumerate(crosses):
-        cross = dgs.PolySurface('cross%s'%idx, scene, file = '%s/cross.obj'%modelDir)
+        cross = dgs.PolySurface('cross%s'%idx, scene, file = '%s/cross.obj'%MODELDIR)
         cross.setScale(.01,.01,.01)
         cross.translate = position
         renderStack.objects[cross.name] = cross
@@ -76,20 +76,22 @@ def loadScene(renderStack, file=None):
     return True 
 
 def addInput():
-    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=renderStack, direction=3)
-    ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=renderStack, direction=2)
-    ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=renderStack, direction=1)
-    ui.add_key_callback(arrowKey, ui.KEY_DOWN, renderStack=renderStack, direction=0)
+    for rs in renderStack:
+        ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=rs, direction=3)
+        ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=rs, direction=2)
+        ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=rs, direction=1)
+        ui.add_key_callback(arrowKey, ui.KEY_DOWN, renderStack=rs, direction=0)
 
 def arrowKey(window,renderStack,direction):
-    if direction == 3:    # print "right"
-        renderStack.objects['teapot'].rotate += np.array((0.,5.,0.))
-    elif direction == 2:    # print "left"
-        renderStack.objects['teapot'].rotate -= np.array((0.,5.,0.))
-    elif direction == 1:      # print 'up'
-        renderStack.objects['teapot'].translate += np.array((0.,.01,0.))
-    else:                   # print "down"
-        renderStack.objects['teapot'].translate -= np.array((0.,.01,0.))
+    for o in renderStack.objects:
+        if direction == 3:    # print "right"
+            o.rotate(np.array((0.,5.,0.)))
+        elif direction == 2:    # print "left"
+            o.rotate(-np.array((0.,5.,0.)))
+        elif direction == 1:      # print 'up'
+            o.translate(np.array((0.,.01,0.)))
+        else:                   # print "down"
+            o.translate(-np.array((0.,.01,0.)))
 
 def drawScene(renderStack):
     ''' Render the stack '''
@@ -114,10 +116,10 @@ def setup():
         windows.append(window)
         renderStacks.append(renderStack)
     ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
-    scene = loadScene(renderStacks)
+    scenes = [loadScene(renderStack) for renderStack in renderStacks]
     for rs in renderStacks:
     	rs.graphicsCardInit()
-    return renderStacks, scene, windows
+    return renderStacks, scenes, windows
 
 def runLoop(renderStacks, windows):
     # Print message to console, and kick off the loop to get it rolling.

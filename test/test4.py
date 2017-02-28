@@ -77,7 +77,7 @@ def setup():
     renderStack = ui.RenderStack()
     renderStack.display = ui.Display()
     ui.init()
-    offset = (1920,0)
+    offset = (-1920,0)
     mainWindow = renderStack.addWindow(ui.open_window('Warp Distortion Test', offset[0], offset[1], renderStack.display.width, renderStack.display.height))
     if not mainWindow:
         ui.terminate()
