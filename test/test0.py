@@ -81,11 +81,9 @@ def arrowKey(window,renderStack,direction):
     elif direction == 2:    # print "left"
         pass
     elif direction == 1:      # print 'up'
-        renderStack.objects['sun'].rotate += np.array((5.,0.,0.))
-        print renderStack.objects['sun'].rotate
+        pass
     else:                   # print "down"
-        renderStack.objects['sun'].rotate -= np.array((5.,0.,0.))
-        print renderStack.objects['sun'].rotate
+        pass
 
 def drawScene(renderStack):
     ''' Render the stack '''
@@ -113,7 +111,6 @@ def setup():
 def runLoop(renderStack, mainWindow):
     # Print message to console, and kick off the loop to get it rolling.
     print("Hit ESC key to quit.")
-    print("Use Up/Down to rotate the solar system.")
     frame = 0
     while not ui.window_should_close(mainWindow):
         ui.make_context_current(mainWindow)

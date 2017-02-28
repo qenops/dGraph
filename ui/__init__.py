@@ -17,8 +17,8 @@ __all__ = []
 WINDOWSTACKS = {}       # Each window can have 1 associated renderStack
 WINDOWS = []
 import OpenGL.GL as GL
-import dglfw as fw
-from dglfw import *
+from . import dglfw as fw
+from .dglfw import *
 
 class RenderStack(list):
     '''An object representing a renderable view of the scene graph

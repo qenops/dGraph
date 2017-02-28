@@ -224,9 +224,10 @@ class Convolution(Warp):
         #print(shape[0]*shape[1])
         it = np.nditer(self._kernel, flags=['multi_index'])
         while not it.finished:
-            s = sStep*(it.multi_index[1]-shape[1]/2.)
-            t = tStep*(it.multi_index[0]-shape[0]/2.)
-            code.append('    FragColor = FragColor + texture2D(tex0, fragTexCoord + vec2(%s, %s))*%sf;\n'%(s, t, it[0]))
+            if it[0] != 0.:
+                s = sStep*(it.multi_index[1]-shape[1]/2.)
+                t = tStep*(it.multi_index[0]-shape[0]/2.)
+                code.append('    FragColor = FragColor + texture2D(tex0, fragTexCoord + vec2(%s, %s))*%sf;\n'%(s, t, it[0]))
             it.iternext()
         code.append('}')
         return '%s%s'%(_shaderHeader,''.join(code))
