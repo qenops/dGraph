@@ -47,10 +47,11 @@ def loadScene(renderStack, file=None, cross=False):
     scene = dg.SceneGraph(file)
     stereoCam = dgc.StereoCamera('front', scene)
     stereoCam.setResolution((renderStack.width/2, renderStack.height))
-    stereoCam.setTranslate(0.,0.,0.)
+    stereoCam.setTranslate(0.,-.06,0.)
+    stereoCam.setRotate(20.,0.,0.)
     stereoCam.setFOV(50.)
     stereoCam.IPD = .062
-    stereoCam.midOffset = -52
+    stereoCam.midOffset = -71
     if cross:
         crosses = [
             np.array((-.4,-.4,-2.)),
@@ -75,8 +76,8 @@ def loadScene(renderStack, file=None, cross=False):
     else:
         teapot = dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR)
         teapot.setTranslate(0.,0.,-.2)
-        teapot.setScale(.05,.05,.05)
-        teapot.setRotate(0.,0.,0.)
+        teapot.setScale(.04,.04,.04)
+        teapot.setRotate(0.,-15.,0.)
         renderStack.objects['teapot'] = teapot
         material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
         teapot.setMaterial(material1)
