@@ -16,7 +16,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import math
+import math, os
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
@@ -26,11 +26,11 @@ import dGraph.materials as dgm
 import dGraph.materials.warp
 import dGraph.util.imageManip as im
 
-MODELDIR = './dGraph/test/data'
+MODELDIR = '%s/data'%os.path.dirname(__file__)
 WINDOWS = [{
     "name": 'HMD Right',
-    #"location": (0, 0),
-    "location": (2436, 1936), # px coordinates of the startup screen for window location
+    "location": (900, 0),
+    #"location": (2436, 1936), # px coordinates of the startup screen for window location
     "size": (830, 800), # px size of the startup screen for centering
     "center": (290,216), # center of the display
     "refresh_rate": 60, # refreshrate of the display for precise time measuring
@@ -41,8 +41,8 @@ WINDOWS = [{
     },
     {
     "name": 'HMD Left',
-    #"location": (0, 0),
-    "location": (3266, 1936), # px coordinates of the startup screen for window location
+    "location": (0, 0),
+    #"location": (3266, 1936), # px coordinates of the startup screen for window location
     "size": (830, 800), # px size of the startup screen for centering
     "center": (290,216), # center of the display
     "refresh_rate": 60, # refreshrate of the display for precise time measuring
@@ -76,12 +76,12 @@ def loadScene(renderStacks,file=None):
     #    obj.setMaterial(material1)
 
     renderStacks[0].append(cam.right)
-    warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0020.npy'%MODELDIR)
-    renderStacks[0].append(warp)
+    #warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0020.npy'%MODELDIR)
+    #renderStacks[0].append(warp)
 
     renderStacks[1].append(cam.left)
-    warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0000.npy'%MODELDIR)
-    renderStacks[1].append(warp)
+    #warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0000.npy'%MODELDIR)
+    #renderStacks[1].append(warp)
     return scene
 
 def addInput():
@@ -133,7 +133,9 @@ def runLoop(renderStacks, windows):
     print("Hit ESC key to quit.")
     while not ui.window_should_close(windows[0]):
         for rs in renderStacks:
+            print rs
             for window in rs.windows:
+                print window
                 ui.make_context_current(window)
                 drawScene(rs)
                 ui.swap_buffers(window)
