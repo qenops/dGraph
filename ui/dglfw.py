@@ -36,6 +36,18 @@ def key_callback(window, key, scancode, action,  mods):
         function, args, kwargs = _key_callbacks[(key,action,mods)]
         function(window, *args, **kwargs)
 
+class Joystick(int):
+    def __init__(self, *args, **kwargs):
+        super(Joystick,self).__init__(*args, **kwargs)
+        self.leftTrigger = False
+        self.rightTrigger = False
+        self.A = False
+        self.B = False
+        self.X = False
+        self.Y = False
+        self.L = False
+        self.R = False
+
 def find_joysticks():
     joylist = []
     for joy in range(15):
@@ -46,7 +58,7 @@ def find_joysticks():
                 sum += axes[0][i]
             if abs(sum) > .000001:
                 print 'Found Joy %d'%(joy+1) 
-                joylist.append(joy)
+                joylist.append(Joystick(joy))
     return joylist
 
 def get_joy_axes(joy):
