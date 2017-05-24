@@ -16,7 +16,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import math
+import math, os
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
@@ -26,7 +26,7 @@ import dGraph.materials as dgm
 import dGraph.materials.warp
 import dGraph.util.imageManip as im
 
-MODELDIR = './dGraph/test/data'
+MODELDIR = '%s/data'%os.path.dirname(__file__)
 
 def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''
@@ -37,7 +37,7 @@ def loadScene(renderStack,file=None):
     cam.setFOV(50.)
     renderStack.cameras.append(cam)
     teapot = dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR)
-    teapot.setScale(.035,.035,.035)
+    teapot.setScale(.4,.4,.4)
     teapot.setTranslate(-.02,.02,-2.)
     teapot.setRotate(5.,-15.,0.)
     renderStack.objects['teapot'] = teapot
@@ -47,8 +47,8 @@ def loadScene(renderStack,file=None):
         obj.setMaterial(material1)
 
     renderStack.append(cam)
-    #warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0020.npy'%MODELDIR)
-    #renderStack.append(warp)
+    warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0000.npy'%MODELDIR)
+    renderStack.append(warp)
     return scene
 
 def addInput():

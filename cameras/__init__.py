@@ -16,6 +16,7 @@ __all__ = ["Camera", "StereoCamera"]
 
 from dGraph import *
 import dGraph.xformMatrix as xm
+import dGraph.ui as ui
 import OpenGL.GL as GL
 import random
 from math import floor, ceil
@@ -344,25 +345,32 @@ class StereoCamera(WorldObject):
         super(StereoCamera, self).__init__(name, parent)
         self.left = Camera('%s_lf'%name,self)
         self.right = Camera('%s_rt'%name, self)
-        self._IPD = Plug(self, float,.062)
+        self._ipd = Plug(self, float,.062)
         self._converganceDepth = Plug(self, float, 1.)
+        self._midOffset = Plug(self, int,0)
         # We need to zero out our z rotations and instead move them to the left and right cameras
         self._rotateCorrected = Plug(self, np.ndarray, np.array((0.,0.,0.)))
         self._rotate.connectFunction(self.rotate, self.outRotateCorrected)
         self.left.rotate.connectFunction(self.rotate,self.outRotateZ)
         self.right.rotate.connectFunction(self.rotate,self.outRotateZ)
         self._setupDone = True
-        self._lfRenderStack = [self.left]
-        self._rtRenderStack = [self.right]
+        self._lfRenderStack = ui.RenderStack([self.left])
+        self._rtRenderStack = ui.RenderStack([self.right])
         self._switch = switch
-        self.left.translate.connectFunction(self.IPD,self.outLeftTranslate)
-        self.right.translate.connectFunction(self.IPD,self.outRightTranslate)
+        self.left.translate.connectFunction(self.ipd,self.outLeftTranslate)
+        self.right.translate.connectFunction(self.ipd,self.outRightTranslate)
     @property
-    def IPD(self):
-        return self._IPD
+    def ipd(self):
+        return self._ipd
     @property
     def converganceDepth(self):
         return self._convergenceDepth
+    @property
+    def midOffset(self):
+        return self._midOffset
+    @midOffset.setter
+    def midOffset(self, value):
+        self._midOffset = value
     @staticmethod
     def outLeftTranslate(input):
         return np.array((input/2.,0.,0.))
@@ -408,9 +416,9 @@ class StereoCamera(WorldObject):
         self._rtRenderStack = self._rtRenderStackHold
     def __setattr__(self, attr, value):
         #print 'setting %s to %s'%(attr,value)
-        if attr == 'IPD':
-            self._IPD.value = value
-            #self._IPD.propigateDirty()
+        if attr == 'ipd':
+            self._ipd.value = value
+            #self._ipd.propigateDirty()
         elif attr == 'converganceDepth':
             self._convergenceDepth.value = value
             #self._converganceDepth.propigateDirty()
@@ -449,10 +457,11 @@ class StereoCamera(WorldObject):
             sceneGraphSet.update(node.setup(width/2, height))
         return sceneGraphSet
     def render(self, width, height, renderStack=[], parentFrameBuffer=0, posWidth=0, clear=True):
-        #print '%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear)
+        #print('%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear))
         split = [self.rtRenderStack,self.lfRenderStack] if self._switch else [self.lfRenderStack,self.rtRenderStack] # switch for crosseye renders
+        newWidth = (width - self._midOffset)/2
         for idx, stack in enumerate(split):                          # Do left stack then right stack
-            #print stack
+            #print(stack)
             temp=stack.pop()
-            temp.render(int(width/2), height, stack, parentFrameBuffer, posWidth=int(idx*width/2), clear=not idx)   # Go up the render stack to get our texture
-        #print '%s leaving render. %s'%(self.__class__, self._name)
+            temp.render(int(width/2), height, stack, parentFrameBuffer, posWidth=int((idx*newWidth)+((idx*2-1)*self._midOffset)), clear=not idx)   # Go up the render stack to get our texture
+        #print('%s leaving render. %s'%(self.__class__, self._name))

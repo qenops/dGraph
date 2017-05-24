@@ -19,6 +19,8 @@ WINDOWS = []
 import OpenGL.GL as GL
 from dGraph.ui import dglfw as fw
 from dGraph.ui.dglfw import *
+#from . import dglfw as fw
+#from .dglfw import *
 
 class RenderStack(list):
     '''An object representing a renderable view of the scene graph

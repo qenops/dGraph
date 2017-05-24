@@ -16,7 +16,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import math
+import math, os
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
@@ -26,7 +26,7 @@ import dGraph.materials as dgm
 import dGraph.materials.warp
 import dGraph.util.imageManip as im
 
-MODELDIR = './dGraph/test/data'
+MODELDIR = '%s/data'%os.path.dirname(__file__)
 
 def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''

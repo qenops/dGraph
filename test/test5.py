@@ -16,7 +16,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import math
+import math, os
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
@@ -26,12 +26,13 @@ import dGraph.materials as dgm
 import dGraph.materials.warp
 import dGraph.util.imageManip as im
 
-MODELDIR = './dGraph/test/data'
+MODELDIR = '%s/data'%os.path.dirname(__file__)
 WINDOWS = [{
     "name": 'Test 5',
-    "location": (0, 0),
-    #"location": (2436, 1936), # px coordinates of the startup screen for window location
-    "size": (800, 800), # px size of the startup screen for centering
+    #"location": (0, 0),
+    "location": (2436, 1936), # px coordinates of the startup screen for window location
+    #"size": (1920, 1080),
+    "size": (1600,800), # px size of the startup screen for centering
     "center": (400,400), # center of the display
     "refresh_rate": 60, # refreshrate of the display for precise time measuring
     "px_size_mm": 0.09766, # px size of the display in mm
@@ -41,12 +42,13 @@ WINDOWS = [{
     },
 ]
 
-def loadScene(renderStack, file=None):                
+def loadScene(renderStack, file=None, cross=False):                
     '''Load or create our sceneGraph'''
     scene = dg.SceneGraph(file)
     stereoCam = dgc.StereoCamera('front', scene)
     stereoCam.setResolution((renderStack.width/2, renderStack.height))
-    stereoCam.setTranslate(0.,0.,0.)
+    stereoCam.setTranslate(0.,-.06,0.)
+    stereoCam.setRotate(20.,0.,0.)
     stereoCam.setFOV(50.)
     stereoCam.IPD = .062
     crosses = [
@@ -75,6 +77,14 @@ def loadScene(renderStack, file=None):
     renderStack.append(stereoCam)
     return True 
 
+def animateScene(renderStack, frame):
+    ''' Create motion in our scene '''
+    # infinity rotate:
+    y = 1
+    x = math.cos(frame*math.pi/60)
+    for obj in renderStack.objects.itervalues():
+        obj.rotate += np.array((x,y,0.))
+
 def addInput():
     for rs in renderStack:
         ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=rs, direction=3)
@@ -100,42 +110,36 @@ def drawScene(renderStack):
     temp.render(renderStack.width, renderStack.height, myStack)     # Render our warp to screen
 
 def setup():
+    winData = WINDOWS[0]
+    renderStack = ui.RenderStack()
+    renderStack.display = ui.Display(resolution=winData['size'])
     ui.init()
-    renderStacks = []
-    windows = []
-    for idx, winData in enumerate(WINDOWS):
-        renderStack = ui.RenderStack()
-        renderStack.display = ui.Display(resolution=winData['size'])
-        share = None if idx == 0 else windows[0]
-        window = renderStack.addWindow(ui.open_window(winData['name'], winData['location'][0], winData['location'][1], renderStack.display.width, renderStack.display.height, share=share))
-        if not window:
-            ui.terminate()
-            exit(1)
-        ui.make_context_current(window)
-        dg.initGL()
-        windows.append(window)
-        renderStacks.append(renderStack)
+    mainWindow = renderStack.addWindow(ui.open_window(winData['name'], winData['location'][0], winData['location'][1], renderStack.display.width, renderStack.display.height))
+    if not mainWindow:
+        ui.terminate()
+        exit(1)
+    ui.make_context_current(mainWindow)
     ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
     scenes = [loadScene(renderStack) for renderStack in renderStacks]
     for rs in renderStacks:
     	rs.graphicsCardInit()
     return renderStacks, scenes, windows
 
-def runLoop(renderStacks, windows):
+def runLoop(renderStack, mainWindow):
     # Print message to console, and kick off the loop to get it rolling.
     print("Hit ESC key to quit.")
-    while not ui.window_should_close(windows[0]):
-        for rs in renderStacks:
-            for window in rs.windows:
-                ui.make_context_current(window)
-                drawScene(rs)
-                ui.swap_buffers(window)
+    frame = 0
+    while not ui.window_should_close(mainWindow):
+        ui.make_context_current(mainWindow)
+        drawScene(renderStack)
+        ui.swap_buffers(mainWindow)
         ui.poll_events()
-        #ui.wait_events()
+        #animateScene(renderStack, frame)
+        frame += 1
     ui.terminate()
     exit(0)
 
 if __name__ == '__main__':
     renderStack, scene, windows = setup()
     addInput()
-    runLoop(renderStack, windows)
+    runLoop(renderStack, windows[0])

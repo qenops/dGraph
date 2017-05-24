@@ -16,7 +16,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
-import math
+import math, os
 import numpy as np
 import dGraph as dg
 import dGraph.ui as ui
@@ -26,7 +26,7 @@ import dGraph.materials as dgm
 import dGraph.materials.warp
 import dGraph.util.imageManip as im
 
-MODELDIR = './dGraph/test/data'
+MODELDIR = '%s/data'%os.path.dirname(__file__)
 
 def loadScene(renderStack,file=None):                
     '''Load or create our sceneGraph'''
@@ -95,7 +95,7 @@ def drawScene(renderStack):
 
 def setup():
     renderStack = ui.RenderStack()
-    renderStack.displays.append(ui.Display(resolution=(1920,1200)))
+    renderStack.displays.append(ui.Display(resolution=(800,600)))
     ui.init()
     offset = (0,0)
     mainWindow = renderStack.addWindow(ui.open_window('Scene Graph Test', offset[0], offset[1], renderStack.displays[0].width, renderStack.displays[0].height))
@@ -113,7 +113,6 @@ def setup():
 def runLoop(renderStack, mainWindow):
     # Print message to console, and kick off the loop to get it rolling.
     print("Hit ESC key to quit.")
-    print("Use Up/Down to rotate the solar system.")
     frame = 0
     while not ui.window_should_close(mainWindow):
         ui.make_context_current(mainWindow)
