@@ -29,8 +29,8 @@ import dGraph.util.imageManip as im
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 WINDOWS = [{
     "name": 'Test 5',
-    #"location": (0, 0),
-    "location": (2436, 1936), # px coordinates of the startup screen for window location
+    "location": (0, 0),
+    #"location": (2436, 1936), # px coordinates of the startup screen for window location
     #"size": (1920, 1080),
     "size": (1600,800), # px size of the startup screen for centering
     "center": (400,400), # center of the display

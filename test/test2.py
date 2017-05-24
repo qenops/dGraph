@@ -68,7 +68,7 @@ def loadScene(renderStack,file=None):
     renderStack.shaders['ftBlur'] = ftBlur
     ftBlur._width = renderStack.width
     ftBlur._height = renderStack.height
-    print ftBlur.fragmentShader
+    print(ftBlur.fragmentShader)
     
     bkBlur = dgm.warp.Convolution('bkBlur')
     kernel = im.getPSF(renderStack.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
@@ -129,7 +129,7 @@ def setup():
     renderStack = ui.RenderStack()
     renderStack.displays.append(ui.Display(resolution=(1920,1200),size=(.518,.324)))
     ui.init()
-    offset = (-1920,0)
+    offset = (0,0)
     mainWindow = renderStack.addWindow(ui.open_window('Render Stack Test', offset[0], offset[1], renderStack.displays[0].width, renderStack.displays[0].height))
     if not mainWindow:
         ui.terminate()
