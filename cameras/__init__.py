@@ -87,7 +87,7 @@ class Camera(WorldObject):
         if self._samples == 1:  # special case - just take the midpoint
             samplePoints.append((pixel[0]+pixel[1])/2)
         else:
-            for i in xrange(self._samples):
+            for i in range(self._samples):
                 ''' random or divided or divided random '''  # this is random distribution
                 x = random.uniform(pixel[0][0],pixel[1][0])
                 y = random.uniform(pixel[0][1],pixel[1][1])
@@ -283,8 +283,8 @@ class FilmBack(WorldObject):
                             colB = tri['material'].render(point=vertCoord[1], normal=tri['normals'][1], viewVector=view)
                             view = vertCoord[2]/norm(vertCoord[2])
                             colC = tri['material'].render(point=vertCoord[2], normal=tri['normals'][2], viewVector=view)
-                        for y in xrange(yMin, yMax+1):
-                            for x in xrange(xMin, xMax+1):
+                        for y in range(yMin, yMax+1):
+                            for x in range(xMin, xMax+1):
                                 if beta > 0 and gamm > 0 and (beta + gamm) < 1:
                                     #A(x,y) = A[a]+beta*(B[a]-A[a])+gamm*(C[a]-A[a])
                                     # calc depth - use the image z coord
@@ -457,11 +457,11 @@ class StereoCamera(WorldObject):
             sceneGraphSet.update(node.setup(width/2, height))
         return sceneGraphSet
     def render(self, width, height, renderStack=[], parentFrameBuffer=0, posWidth=0, clear=True):
-        #print '%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear)
+        #print('%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear))
         split = [self.rtRenderStack,self.lfRenderStack] if self._switch else [self.lfRenderStack,self.rtRenderStack] # switch for crosseye renders
         newWidth = (width - self._midOffset)/2
         for idx, stack in enumerate(split):                          # Do left stack then right stack
-            #print stack
+            #print(stack)
             temp=stack.pop()
-            temp.render(width/2, height, stack, parentFrameBuffer, posWidth=(idx*newWidth)+((idx*2-1)*self._midOffset), clear=not idx)   # Go up the render stack to get our texture
-        #print '%s leaving render. %s'%(self.__class__, self._name)
+            temp.render(int(width/2), height, stack, parentFrameBuffer, posWidth=int((idx*newWidth)+((idx*2-1)*self._midOffset)), clear=not idx)   # Go up the render stack to get our texture
+        #print('%s leaving render. %s'%(self.__class__, self._name))

@@ -90,7 +90,9 @@ def prepareImage(image):
     #elif 'u' in img.dtype.name:
     #    mod = 'UI'
     tempISF = '%s%s%s'%(formatBase,dgim.strToInt(img.dtype.name),mod)
-    exec('internalSizedFormat = %s'%tempISF) 
+    namespace = {}
+    exec('internalSizedFormat = %s'% tempISF, None, namespace) 
+    internalSizedFormat = namespace['internalSizedFormat']
     return img, iy, ix, channels, format, type, internalSizedFormat
 
 def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=GL_LINEAR_MIPMAP_LINEAR):

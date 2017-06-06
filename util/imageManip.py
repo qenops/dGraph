@@ -169,6 +169,8 @@ def getPSF(focalDist, blurDist, aperture=None, pixelDiameter=.00033, **kwargs):
     #    tophat[round(d/2),round(d/2)] = [True]
     tophat = tophat[:,~np.all(tophat == 0, axis=0)]   # remove zero columns
     tophat = tophat[~np.all(tophat == 0, axis=1)]     # remove zero rows
+    if len(tophat) == 0:
+        tophat = np.ones([1, 1], tophat.dtype)
     kernel = 1./np.sum(tophat)*tophat
     return kernel
     

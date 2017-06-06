@@ -87,19 +87,19 @@ def load(file, normalize=False):
             if tokens[0] == '#':  # Comment
                 pass
             elif tokens[0] == 'v':  # List of Vertices, with (x,y,z[,w]) coordinates, w is optional and defaults to 1.0.
-                v = map(float, tokens[1:4])
+                v = [x for x in map(float, tokens[1:4])]
                 #minV = map(min, v, minV)
                 #maxV = map(max, v, maxV)
                 if len(tokens) > 4:
                     v.append(float(tokens[5]))
                 verts.append(v)
             elif tokens[0] == 'vt':  # Texture coordinates, in (u, v [,w]) coordinates, these will vary between 0 and 1, w is optional and defaults to 0.
-                uv = map(float, tokens[1:3])
+                uv = [x for x in map(float, tokens[1:3])]
                 if len(tokens) > 3:
                     uv.append(float(tokens[4]))
                 uvs.append(uv)
             elif tokens[0] == 'vn':  # Normals in (x,y,z) form; normals might not be unit.
-                n = map(float, tokens[1:4])
+                n = [x for x in map(float, tokens[1:4])]
                 if normalize:
                     n/=norm(n)
                 normals.append(n)
@@ -143,7 +143,7 @@ def load(file, normalize=False):
                 pass
     
     verts, uvs, normals = [np.matrix(a,dtype=np.float32) if a != [] else np.matrix([]) for a in [verts, uvs, normals]]
-    faceSizes = map(len, faceVerts)
+    faceSizes = [x for x in map(len, faceVerts)]
     if max(faceSizes) == min(faceSizes):    # convert to matrix since all faces are same size
         faceVerts, faceUvs, faceNormals = [np.matrix(a,dtype=np.uint32) if a != [] else np.matrix([]) for a in [faceVerts, faceUvs, faceNormals]]
     #else:                                   # convert to single array???? - this seems stupid

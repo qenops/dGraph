@@ -16,7 +16,7 @@ __all__ = ["Shape", "PolySurface"]
 
 from dGraph import *
 import dGraph.materials as dgm
-from dGraph.io import obj
+from dGraph.dio import obj
 from math import sin, cos, pi
 import numpy as np
 from numpy.linalg import norm
@@ -156,8 +156,8 @@ class PolySurface(Shape):
             fullVerts, faces = np.unique(f, return_inverse=True)        # get the unique indices and the reconstruction(our element array)
             # Build our actual vertex array by getting the positions, normals and uvs from our unique indicies
             vertsGL = self._verts[fullVerts%maxSize].getA1()
-            uvsGL = np.zeros((0),dtype=np.float32) if len(self._uvs.A1) < 3 else self._uvs[(fullVerts/maxSize)%maxSize].getA1()
-            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[fullVerts/(maxSize**2)].getA1()
+            uvsGL = np.zeros((0),dtype=np.float32) if len(self._uvs.A1) < 3 else self._uvs[((fullVerts/maxSize)%maxSize).astype(fullVerts.dtype)].getA1()
+            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[(fullVerts/(maxSize**2)).astype(fullVerts.dtype)].getA1()
             return np.concatenate((vertsGL,uvsGL,normsGL)), faces.astype(np.uint32), [len(vertsGL),len(uvsGL),len(normsGL)]
     def generateVBO(self):
         ''' generates OpenGL VBO and VAO objects '''
@@ -235,8 +235,8 @@ class PolySurface(Shape):
         numVertices = (subDivHeight - 2) * subDivAxis + 2
         numFaces = (subDivHeight - 2) * (subDivAxis - 1) * 2
         verts = matlib.zeros((0,3),dtype=np.float32)
-        for j in xrange(1,subDivHeight-1):
-            for i in xrange(subDivAxis):
+        for j in range(1,subDivHeight-1):
+            for i in range(subDivAxis):
                 theta = float(j)/(subDivHeight-1) * pi
                 phi = float(i)/(subDivAxis-1)  * pi * 2
                 x = sin(theta) * cos(phi) * radius
@@ -249,13 +249,13 @@ class PolySurface(Shape):
         # faces is a list of 3 indicies in verts that make up each face
         faces = matlib.zeros((0,3), dtype=np.uint32)
         faceSizes = []
-        for j in xrange(subDivHeight-3):
-            for i in xrange(subDivAxis-1):
+        for j in range(subDivHeight-3):
+            for i in range(subDivAxis-1):
                 faces = np.append(faces, np.array([[j*subDivAxis + i, (j+1)*subDivAxis + (i+1), j*subDivAxis + (i+1)]]), axis=0)
                 faces = np.append(faces,np.array([[j*subDivAxis + i, (j+1)*subDivAxis + i, (j+1)*subDivAxis + (i+1)]]), axis=0)
                 faceSizes.append(3)
                 faceSizes.append(3)
-        for i in xrange(subDivAxis-1):
+        for i in range(subDivAxis-1):
             faces = np.append(faces,np.array([[(subDivHeight-2)*subDivAxis, i, i + 1]]), axis=0)
             faces = np.append(faces,np.array([[(subDivHeight-2)*subDivAxis + 1, (subDivHeight-3)*subDivAxis + (i+1), (subDivHeight-3)*subDivAxis + i]]), axis=0)
             faceSizes.append(3)

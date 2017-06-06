@@ -27,8 +27,8 @@ else:
     imap = map
 import OpenGL.GL as GL
 
-import xformMatrix as xm
-import io.obj as obj
+from . import xformMatrix as xm
+from .dio import obj as obj
 
 class SceneGraph(object):
     ''' A top level object that houses everything in a scene '''

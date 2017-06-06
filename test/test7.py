@@ -1,5 +1,5 @@
 #!/usr/bin/python
-'''Test for an openGL based stereo renderer - test binocular rendering to multiple windows with separate distortion warp textures
+'''Test for an openGL based stereo renderer - test rendering same scene to multiple windows
 
 David Dunn
 Feb 2017 - created
@@ -53,15 +53,13 @@ WINDOWS = [{
     },
 ]
 
-def loadScene(renderStacks,file=None):
+def loadScene(renderStack,file=None):
     '''Load or create our sceneGraph'''
     scene = dg.SceneGraph(file)
-    cam = dgc.StereoCamera('cam', scene)
-    cam.right.setResolution((renderStacks[0].width, renderStacks[0].height))
-    cam.left.setResolution((renderStacks[1].width, renderStacks[1].height))
+    cam = dgc.Camera('cam', scene)
+    cam.setResolution((renderStack.width, renderStack.height))
     cam.setTranslate(0.,0.,0.)
     cam.setFOV(50.)
-    for rs in renderStacks:
     	rs.cameras.append(cam)
     teapot = dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR)
     teapot.setScale(.1,.1,.1)
@@ -72,7 +70,7 @@ def loadScene(renderStacks,file=None):
 
     material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
     teapot.setMaterial(material1)
-    #for obj in renderStack.objects.values():
+    #for obj in renderStack.objects.itervalues():
     #    obj.setMaterial(material1)
 
     renderStacks[0].append(cam.right)

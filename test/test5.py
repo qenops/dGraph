@@ -29,8 +29,8 @@ import dGraph.util.imageManip as im
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 WINDOWS = [{
     "name": 'Test 5',
-    #"location": (0, 0),
-    "location": (2436, 1936), # px coordinates of the startup screen for window location
+    "location": (0, 0),
+    #"location": (2436, 1936), # px coordinates of the startup screen for window location
     #"size": (1920, 1080),
     "size": (1600,800), # px size of the startup screen for centering
     "center": (400,400), # center of the display
@@ -51,36 +51,28 @@ def loadScene(renderStack, file=None, cross=False):
     stereoCam.setRotate(20.,0.,0.)
     stereoCam.setFOV(50.)
     stereoCam.IPD = .062
-    stereoCam.midOffset = -71
-    if cross:
-        crosses = [
-            np.array((-.4,-.4,-2.)),
-            np.array((-.4,.0,-2.)),
-            np.array((-.4,.4,-2.)),
-            np.array((.0,-.4,-2.)),
-            np.array((.0,.0,-2.)),
-            np.array((.0,.4,-2.)),
-            np.array((.4,-.4,-2.)),
-            np.array((.4,.0,-2.)),
-            np.array((.4,.4,-2.)),
-        ]
-        for idx, position in enumerate(crosses):
-            cross = dgs.PolySurface('cross%s'%idx, scene, file = '%s/cross.obj'%MODELDIR)
-            cross.setScale(.02,.02,.02)
-            cross.translate = position
-            renderStack.objects[cross.name] = cross
-            #print(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.)
-            material = dgm.Material('material%s'%idx,ambient=(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.), amb_coeff=.5)
-            #material = dgm.Lambert('material%s'%idx,ambient=(1,0,0), amb_coeff=.5, diffuse=(1,1,1), diff_coeff=1)
-            cross.setMaterial(material)
-    else:
-        teapot = dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR)
-        teapot.setTranslate(0.,0.,-.2)
-        teapot.setScale(.04,.04,.04)
-        teapot.setRotate(0.,-15.,0.)
-        renderStack.objects['teapot'] = teapot
-        material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-        teapot.setMaterial(material1)
+    crosses = [
+        #np.array((.031,.0,-10.)),
+        #np.array((-.031,.0,-10.)),
+        np.array((-.2,-.2,-10.)),
+        np.array((-.2,.0,-10.)),
+        np.array((-.2,.2,-10.)),
+        np.array((.0,-.2,-10.)),
+        np.array((.0,.0,-10.)),
+        np.array((.0,.2,-10.)),
+        np.array((.2,-.2,-10.)),
+        np.array((.2,.0,-10.)),
+        np.array((.2,.2,-10.)),
+    ]
+    for idx, position in enumerate(crosses):
+        cross = dgs.PolySurface('cross%s'%idx, scene, file = '%s/cross.obj'%MODELDIR)
+        cross.setScale(.01,.01,.01)
+        cross.translate = position
+        renderStack.objects[cross.name] = cross
+        print(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.)
+        material = dgm.Material('material%s'%idx,ambient=(1,(idx/3.)/3.+1/3.,(idx%3)/3.+1/3.), amb_coeff=.5)
+        #material = dgm.Lambert('material%s'%idx,ambient=(1,0,0), amb_coeff=.5, diffuse=(1,1,1), diff_coeff=1)
+        cross.setMaterial(material)
     renderStack.cameras = [stereoCam]
     renderStack.append(stereoCam)
     return True 
@@ -94,21 +86,22 @@ def animateScene(renderStack, frame):
         obj.rotate += np.array((x,y,0.))
 
 def addInput():
-    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=renderStack, direction=3)
-    ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=renderStack, direction=2)
-    ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=renderStack, direction=1)
-    ui.add_key_callback(arrowKey, ui.KEY_DOWN, renderStack=renderStack, direction=0)
+    for rs in renderStack:
+        ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=rs, direction=3)
+        ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=rs, direction=2)
+        ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=rs, direction=1)
+        ui.add_key_callback(arrowKey, ui.KEY_DOWN, renderStack=rs, direction=0)
 
 def arrowKey(window,renderStack,direction):
-    if direction == 3:    # print "right"
-        renderStack.cameras[0].ipd += .001
-    elif direction == 2:    # print "left"
-        renderStack.cameras[0].ipd -= .001
-    elif direction == 1:      # print 'up'
-        renderStack.cameras[0].midOffset += 1
-    else:                   # print "down"
-        renderStack.cameras[0].midOffset -= 1 
-        print renderStack.cameras[0].midOffset
+    for o in renderStack.objects:
+        if direction == 3:    # print "right"
+            o.rotate(np.array((0.,5.,0.)))
+        elif direction == 2:    # print "left"
+            o.rotate(-np.array((0.,5.,0.)))
+        elif direction == 1:      # print 'up'
+            o.translate(np.array((0.,.01,0.)))
+        else:                   # print "down"
+            o.translate(-np.array((0.,.01,0.)))
 
 def drawScene(renderStack):
     ''' Render the stack '''
@@ -127,10 +120,10 @@ def setup():
         exit(1)
     ui.make_context_current(mainWindow)
     ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
-    dg.initGL()
-    scene = loadScene(renderStack)
-    renderStack.graphicsCardInit()
-    return renderStack, scene, [mainWindow]
+    scenes = [loadScene(renderStack) for renderStack in renderStacks]
+    for rs in renderStacks:
+    	rs.graphicsCardInit()
+    return renderStacks, scenes, windows
 
 def runLoop(renderStack, mainWindow):
     # Print message to console, and kick off the loop to get it rolling.
