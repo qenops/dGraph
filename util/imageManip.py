@@ -12,11 +12,18 @@ import numpy as np
 #pixelDiameter = .000333333333  # (3 dpmm)
 #pixelDiameter = .0001  # (10 dpmm)
 
+def strToImg(text, scale=1.0,thick=1,color=(255,255,255),backCol=(0,0,0)):
+    shape, baseLine = cv2.getTextSize(text,cv2.FONT_HERSHEY_PLAIN,scale,int(scale*2.5))
+    img = np.zeros((shape[1]+1,shape[0]+1,3))
+    point = (0,shape[1])
+    drawStr(img,point,text,scale,thick,color,backCol)
+    return img
+
 # Draw a string on an image (from cv2 example common.py)
-def drawStr(dst, point, s, scale=1.0,thick=1):
+def drawStr(dst, point, text, scale=1.0,thick=1,color=(255,255,255),backCol=(0,0,0)):
     x,y = point
-    cv2.putText(dst, s, (x+1, y+1), cv2.FONT_HERSHEY_PLAIN, scale, (0, 0, 0), thickness = thick*2, lineType=cv2.CV_AA)
-    cv2.putText(dst, s, (x, y), cv2.FONT_HERSHEY_PLAIN, scale, (255, 255, 255),thickness = thick, lineType=cv2.CV_AA)
+    cv2.putText(dst, text, (x+1, y+1), cv2.FONT_HERSHEY_PLAIN, scale, backCol, thickness = thick*2, lineType=cv2.LINE_AA)
+    cv2.putText(dst, text, (x, y), cv2.FONT_HERSHEY_PLAIN, scale, color,thickness = thick, lineType=cv2.LINE_AA)
 
 # Convert a string to a number - only good for 1 number per string (otherwise use regex)
 def strToInt(x):
