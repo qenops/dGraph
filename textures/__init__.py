@@ -134,32 +134,55 @@ def updateTexture(texture, image):
     glBindTexture(GL_TEXTURE_2D, 0)
 
 def attachTexture(texture, shader, index):
+    attachTextureNamed(texture, shader, index, "tex%s"%index)
+
+def attachTextureNamed(texture, shader, index, samplerName):
     GL.glActiveTexture(getattr(GL,'GL_TEXTURE%s'%index))                    # make texture register idx active
     GL.glBindTexture(GL.GL_TEXTURE_2D, texture)                             # bind texture to register idx
-    texLoc = GL.glGetUniformLocation(shader, "tex%s"%index)                 # get location of our texture
+    texLoc = GL.glGetUniformLocation(shader, samplerName)                 # get location of our texture
     GL.glUniform1i(texLoc, index)                                           # connect location to register idx
 
-def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filter=GL_LINEAR):
+def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filterMin=GL_LINEAR_MIPMAP_LINEAR,filterMag=GL_LINEAR, levelCount=1):
     texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, type, None)   # Allocate memory
+    levelRes = np.array([width, height], int)
+    for level in range(levelCount):
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, type, None)   # Allocate memory
+        levelRes = np.maximum(levelRes / 2, 1).astype(int)
+
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
-    # create a renderbuffer object to store depth info
-    depthBuffer = glGenRenderbuffers(1)
-    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer)
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height)
-    glBindRenderbuffer(GL_RENDERBUFFER, 0)
-    # setup frame buffer
-    frameBuffer = glGenFramebuffers(1)                                                              # Create frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                  # Bind our frame buffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)         # Attach texture to frame buffer
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer)    # Attach render buffer to depth buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMin);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMag);
     glBindTexture(GL_TEXTURE_2D, 0)
-    return texture, (frameBuffer,width,height)
+
+    ## create a renderbuffer object to store depth info
+    #depthBuffer = glGenRenderbuffers(1)
+    #glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer)
+    #glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height)
+    #glBindRenderbuffer(GL_RENDERBUFFER, 0)
+
+    # use depth texture instead because we can then read it in a probably less not good way
+    depthMap = glGenTextures(1) 
+    glBindTexture(GL_TEXTURE_2D, depthMap)
+    levelRes = np.array([width, height], int)
+    for level in range(levelCount):
+        glTexImage2D(GL_TEXTURE_2D, level, GL_DEPTH_COMPONENT, levelRes[0], levelRes[1], 0, GL_DEPTH_COMPONENT, GL_INT, None)   # Allocate memory
+        levelRes = np.maximum(levelRes / 2, 1).astype(int)
+    glBindTexture(GL_TEXTURE_2D, 0)
+
+    # setup frame buffer
+    fbos = []
+    for level in range(levelCount):
+        frameBuffer = glGenFramebuffers(1)                                                              # Create frame buffer
+        glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                  # Bind our frame buffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, level)         # Attach texture to frame buffer
+        #glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer)    # Attach render buffer to depth buffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, level); # Attach depth texture
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        fbos.append(frameBuffer)
+    
+    return texture, (fbos,width,height), depthMap
 
 def readFramebuffer(x, y, width, height, format, gltype=GL.GL_UNSIGNED_BYTE):
     '''Get pixel values from framebuffer to numpy array'''

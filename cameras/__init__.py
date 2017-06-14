@@ -104,9 +104,9 @@ class Camera(WorldObject):
     def setup(self, width, height):
         ''' just an empty method for compatability with the render stack '''
         return set(self.getScene())
-    def render(self, width, height, renderStack=[], parentFrameBuffer=0, posWidth=0, clear=True):
+    def render(self, width, height, renderStack=[], parentTextures=[], parentFrameBuffers=[], posWidth=0, clear=True):
         #print '%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear)
-        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, parentFrameBuffer)          # Render to our parentFrameBuffer, not screen
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, (parentFrameBuffers[0] if len(parentFrameBuffers) > 0 else 0))          # Render to our parentFrameBuffer, not screen
         if clear:
             #print '%s clearing. %s'%(self.__class__, self._name)
             GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
@@ -456,12 +456,12 @@ class StereoCamera(WorldObject):
         for node in set(self.lfRenderStack+self.rtRenderStack):
             sceneGraphSet.update(node.setup(width/2, height))
         return sceneGraphSet
-    def render(self, width, height, renderStack=[], parentFrameBuffer=0, posWidth=0, clear=True):
+    def render(self, width, height, renderStack=[], parentTextures=[], parentFrameBuffers=[], posWidth=0, clear=True):
         #print('%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear))
         split = [self.rtRenderStack,self.lfRenderStack] if self._switch else [self.lfRenderStack,self.rtRenderStack] # switch for crosseye renders
         newWidth = (width - self._midOffset)/2
         for idx, stack in enumerate(split):                          # Do left stack then right stack
             #print(stack)
             temp=stack.pop()
-            temp.render(int(width/2), height, stack, parentFrameBuffer, posWidth=int((idx*newWidth)+((idx*2-1)*self._midOffset)), clear=not idx)   # Go up the render stack to get our texture
+            temp.render(int(width/2), height, stack, textures, parentFrameBuffers, posWidth=int((idx*newWidth)+((idx*2-1)*self._midOffset)), clear=not idx)   # Go up the render stack to get our texture
         #print('%s leaving render. %s'%(self.__class__, self._name))

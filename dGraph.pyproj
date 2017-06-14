@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{8ef01922-aa85-41f5-8af3-2f496f49e70e}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>test\testDoF.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>{c374890c-e3cd-4c53-854b-00833a403161}</InterpreterId>
+    <InterpreterVersion>3.5</InterpreterVersion>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+    <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="cameras\__init__.py" />
+    <Compile Include="io\obj.py" />
+    <Compile Include="io\__init__.py" />
+    <Compile Include="kdtree.py" />
+    <Compile Include="lights\__init__.py" />
+    <Compile Include="materials\warp.py" />
+    <Compile Include="materials\__init__.py" />
+    <Compile Include="ray.py" />
+    <Compile Include="shapes\implicits.py" />
+    <Compile Include="shapes\__init__.py" />
+    <Compile Include="test\test0.py" />
+    <Compile Include="test\test1.py" />
+    <Compile Include="test\testDoF.py" />
+    <Compile Include="test\test2.py" />
+    <Compile Include="test\test3.py" />
+    <Compile Include="test\test4.py" />
+    <Compile Include="test\test5.py" />
+    <Compile Include="test\test6.py" />
+    <Compile Include="test\__init__.py" />
+    <Compile Include="textures\__init__.py" />
+    <Compile Include="ui\dglfw.py" />
+    <Compile Include="ui\dglut.py" />
+    <Compile Include="ui\__init__.py" />
+    <Compile Include="util\imageManip.py" />
+    <Compile Include="util\__init__.py" />
+    <Compile Include="xformMatrix.py" />
+    <Compile Include="__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="cameras" />
+    <Folder Include="io" />
+    <Folder Include="lights" />
+    <Folder Include="materials" />
+    <Folder Include="shaders\" />
+    <Folder Include="shapes" />
+    <Folder Include="test" />
+    <Folder Include="textures" />
+    <Folder Include="ui" />
+    <Folder Include="util" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="{c374890c-e3cd-4c53-854b-00833a403161}\3.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="shaders\DepthOfFieldPerceptualFragment.glsl" />
+    <Content Include="shaders\GaussMIPTexture2DFragment.glsl" />
+  </ItemGroup>
+  <Import Project="$(PtvsTargetsFile)" Condition="Exists($(PtvsTargetsFile))" />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" Condition="!Exists($(PtvsTargetsFile))" />
+</Project>

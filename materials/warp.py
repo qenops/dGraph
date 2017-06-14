@@ -17,7 +17,7 @@ __all__ = ["Warp", "Contrast", "Blur", "Convolution", "Lookup"]
 import numpy as np
 import OpenGL.GL as GL
 from OpenGL.GL import shaders
-import ctypes
+import ctypes, math
 import dGraph.textures as dgt
 import dGraph.materials as dgm
 _shaderHeader = dgm._shaderHeader
@@ -78,6 +78,15 @@ void main() {
             shaders.compileShader(self.vertexShader, GL.GL_VERTEX_SHADER),
             shaders.compileShader(self.fragmentShader, GL.GL_FRAGMENT_SHADER)
         )
+
+    def uniform(self, name, value):
+        ''' Sets up uniform (not sampler, just like float and stuff) '''
+        location = GL.glGetUniformLocation(self.shader, name)
+        if location < 0:
+            return
+        if type(value) == int:
+            GL.glProgramUniform1i(self.shader, location, value)
+
     def setup(self, width, height): #, warpOnly=False):
         ''' Setup our geometry and buffers and compile our shaders '''
         if self._setup:
@@ -88,9 +97,10 @@ void main() {
         if not hasattr(self, 'vertexArray'):
             self.setupGeo()
         for i in range(self._numWarp):
-            tex, bufferData = dgt.createWarp(self._width,self._height)
-            frameBuffer, w, h = bufferData 
-            self._warpList.append((tex, frameBuffer))            # add to our list of warps
+            levelCount = self.maxLevelCount # very wasteful ... but how do I know if the [input device] will produce mip maps? I need to call [smt].mipLevelCount but what is [smt]?
+            tex, bufferData, depthMap = dgt.createWarp(self._width,self._height,levelCount=levelCount)
+            fbos, w, h = bufferData 
+            self._warpList.append((tex, fbos, depthMap))            # add to our list of warps
         for img in self._texImages:
             self._texList.append(dgt.createTexture(img))         # add to our list of textures
         sceneGraphSet = set()
@@ -126,7 +136,7 @@ void main() {
         GL.glDisableVertexAttribArray(shader_uvs)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
-    def render(self, width, height, renderStack, parentFrameBuffer=0, posWidth=0, clear=True):
+    def render(self, width, height, renderStack, parentTextures=[], parentFrameBuffers=[], posWidth=0, clear=True):
         ''' Recursively render the render stack and render as texture to my geometry '''
         #if width != self._width or height != self._height:
             #print '%sx%s to %sx%s'%(self._width, self._height, width, height)
@@ -138,31 +148,60 @@ void main() {
         for idx in range(self._numWarp):
             stack = list(self._stackList[idx])                                      # get a copy of this texture's render stack
             #stack = self._stackList[idx]
-            tex, frameBuffer = self._warpList[idx]                               # get our texture and frameBuffer
+            tex, fbos, depthMap = self._warpList[idx]                               # get our texture and frameBuffer
             temp = stack.pop()
-            temp.render(width, height, stack, frameBuffer, posWidth=0, clear=True)                   # Go up the render stack to get our texture
+            temp.render(width, height, stack, tex, fbos, posWidth=0, clear=True)                   # Go up the render stack to get our texture
             #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
             #data = np.reshape(data,(height,width,3))
             #cv2.imshow('%s:%s'%(self._name,temp._name),data)
             #cv2.waitKey()
-        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, parentFrameBuffer)              # Disable our frameBuffer so we can render to screen
-        if clear:
-            #print '%s clearing. %s'%(self.__class__, self._name)
-            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        GL.glViewport(posWidth, 0, width, height)                               # set the viewport to the portion we are drawing
+        
         if self.shader is None:                                                 # make sure our shader is compiled
             self.compileShader()
         GL.glUseProgram(self.shader)
         for idx in range(self._numWarp):                                        # attach our warp textures first
-            tex, frameBuffer = self._warpList[idx] 
+            tex, frameBuffer, depthMap = self._warpList[idx] 
             dgt.attachTexture(tex, self.shader, idx)
         for i, tex in enumerate(self._texList):                                 # then attach our normal textures
             idx = i + self._numWarp
             dgt.attachTexture(tex, self.shader, idx)
         GL.glBindVertexArray(self.vertexArray)                                      # bind our vertex array
-        GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
+
+        self.beforeRender()
+
+        # for all mip levels
+        levelRes = np.array([width, height],int)
+        for level in range(self.mipLevelCount):
+            if level > 0:
+                # bind previous outputs as inputs
+                for i in range(self._numWarp):
+                    dgt.attachTextureNamed(parentTextures, self.shader, self._numWarp + len(self._texList) + i, 'tex%dTexture2DFramebufferTexture2D' % i)
+                    break
+            
+            self.uniform("resolution", levelRes);
+            self.uniform("mipLevelIndex", level);
+
+            GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, (parentFrameBuffers[level] if len(parentFrameBuffers) > 0 else 0))              # Disable our frameBuffer so we can render to screen
+            if clear:
+                GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+
+            GL.glViewport(posWidth, 0, levelRes[0], levelRes[1])                               # set the viewport to the portion we are drawing
+            GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
+            levelRes = np.maximum(levelRes / 2, 1).astype(int)
         GL.glUseProgram(0)
         #print '%s leaving render. %s'%(self.__class__, self._name)
+
+    def beforeRender(self):
+        # Prepare uniforms and stuff
+        pass
+
+    @property
+    def mipLevelCount(self):
+        return 1
+    @property
+    def maxLevelCount(self):
+        size = max(self._width, self._height)
+        return int(math.floor(math.log(size) / math.log(2.0))) + 1
 
 class Contrast(Warp):
     ''' A shader that will decrease or increase the contrast of an image '''
@@ -285,3 +324,26 @@ void main() {
     FragColor = texture2D(tex0, uv);
 };
 '''
+
+
+class GaussMIPMap(Warp):
+    def __init__(self, name, **kwargs):
+        super(GaussMIPMap, self).__init__(name, **kwargs)
+    @property
+    def fragmentShader(self):        
+        with open('shaders/GaussMIPTexture2DFragment.glsl', 'r') as fid:
+            code = ''.join([line for line in fid])
+        return code
+    @property
+    def mipLevelCount(self):
+        return self.maxLevelCount
+    
+
+class DepthOfField(Warp):
+    def __init__(self, name, **kwargs):
+        super(DepthOfField, self).__init__(name, **kwargs)
+    @property
+    def fragmentShader(self):        
+        with open('shaders/DepthOfFieldPerceptualFragment.glsl', 'r') as fid:
+            code = ''.join([line for line in fid])
+        return code
