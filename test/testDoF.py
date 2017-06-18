@@ -22,8 +22,10 @@ import dGraph.ui as ui
 import dGraph.cameras as dgc
 import dGraph.shapes as dgs
 import dGraph.materials as dgm
-import dGraph.materials.warp
+import dGraph.shaders as dgshdr
+import dGraph.config as config
 import dGraph.util.imageManip as im
+import time
 
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 
@@ -137,6 +139,8 @@ def runLoop(renderStack, mainWindow):
     while not ui.window_should_close(mainWindow):
         ui.make_context_current(mainWindow)
         drawScene(renderStack)
+        now = time.time()
+        time.sleep(max((frame+1)/config.maxFPS+start-now,0))
         ui.swap_buffers(mainWindow)
         ui.poll_events()
         animateScene(renderStack, frame)

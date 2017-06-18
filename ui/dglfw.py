@@ -27,7 +27,7 @@ def error_callback(error, description):
     print("Error: %s\n" % description)
 
 def add_key_callback(function, key, action=glfw.PRESS, mods=0x0000, *args, **kwargs):
-    ''' key callbacks are stored as dict[(key, action, mods)] = (function, args, kwargs) 
+    ''' key callbacks are stored as dict[(key, action, mods)] = (function, args, kwargs)
     note that function must always accept the window as first argument'''
     _key_callbacks[(key,action,mods)] = (function, args, kwargs)
 
@@ -78,11 +78,12 @@ def get_joy_buttons(joy):
 def open_window(title, posX, posY, width, height, share=None, key_callback=key_callback):
     glfw.window_hint(glfw.VISIBLE, False)
     glfw.window_hint(glfw.DECORATED, False)
+    glfw.window_hint(glfw.SAMPLES, 8)
     window = glfw.create_window(width, height, title, None, share)
     if not window:
         return None
     glfw.make_context_current(window)
-    glfw.swap_interval(1)
+    glfw.swap_interval(0)  # doesn't seem to be helping fix vsync - actually turning it to 0 does seem to help
     glfw.set_window_pos(window, posX, posY)
     glfw.show_window(window)
     glfw.set_key_callback(window, key_callback)

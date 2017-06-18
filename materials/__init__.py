@@ -22,14 +22,8 @@ from math import sqrt
 from numpy.linalg import norm
 from numpy import dot, vdot
 import dGraph as dg
+import dGraph.config as config
 #import cv2
-
-_shaderHeader = '''
-#version 330
-#ifdef GL_ES
-    precision highp float;
-#endif
-'''
 
 class Material(object):
     ''' A definition of a lighting model to define the illumination of a surface
@@ -78,12 +72,12 @@ void main()
     @property
     def vertexShader(self):
         '''The output of the vertex shader is clip coordinates (not viewport coordinates) - OpenGL still performs the "divide by w" step automatically.'''
-        return '%s%s'%(_shaderHeader, self._vertexShader)
+        return '%s%s'%(config.shaderHeader, self._vertexShader)
     @property
     def fragmentShader(self):
         a = np.ones(4)
         a[:self._ambient.shape[0]] = self._ambient*self._amb_coeff
-        return '%s%s'%(_shaderHeader,self._fragmentShader%tuple(a))
+        return '%s%s'%(config.shaderHeader,self._fragmentShader%tuple(a))
     def compileShader(self):
         self.shader = shaders.compileProgram(
             shaders.compileShader(self.vertexShader, GL.GL_VERTEX_SHADER),
@@ -118,7 +112,7 @@ void main()
 }'''
     @property
     def fragmentShader(self):
-        return '%s%s'%(_shaderHeader,self._fragmentShader)
+        return '%s%s'%(config.shaderHeader,self._fragmentShader)
 
 class Lambert(Material):
     ''' A material class based on the Lambert illumination model
@@ -169,7 +163,7 @@ void main()
     def fragmentShader(self):
         diffused = self._fragmentShader%(tuple(self._diffuse*self._diff_coeff)+('%s','%s','%s'))
         diffused = diffused%tuple(self._ambient*self._amb_coeff)
-        return '%s%s'%(_shaderHeader,diffused)
+        return '%s%s'%(config.shaderHeader,diffused)
         #return self._fragmentShader
     def setDiffuse(self, diffuse):
         self._diffuse = np.array(diffuse)

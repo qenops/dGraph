@@ -23,8 +23,10 @@ import dGraph.ui as ui
 import dGraph.cameras as dgc
 import dGraph.shapes as dgs
 import dGraph.materials as dgm
-import dGraph.materials.warp
+import dGraph.shaders as dgshdr
+import dGraph.config as config
 import dGraph.util.imageManip as im
+import time
 
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 WINDOWS = [{
@@ -131,6 +133,7 @@ def setup():
 def runLoop(renderStacks, windows):
     # Print message to console, and kick off the loop to get it rolling.
     print("Hit ESC key to quit.")
+    start = time.time()
     while not ui.window_should_close(windows[0]):
         for rs in renderStacks:
             print rs
@@ -140,6 +143,8 @@ def runLoop(renderStacks, windows):
                 drawScene(rs)
                 ui.swap_buffers(window)
         ui.poll_events()
+        now = time.time()
+        time.sleep(max((frame+1)/config.maxFPS+start-now,0))
         #ui.wait_events()
     ui.terminate()
     exit(0)

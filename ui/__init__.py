@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=bad-whitespace, line-too-long
 '''User interface submodule for dGraph scene description module based on glfw
 
 David Dunn
@@ -14,75 +15,12 @@ __author__ = ('David Dunn')
 __version__ = '1.6'
 __all__ = []
 
-WINDOWSTACKS = {}       # Each window can have 1 associated renderStack
-WINDOWS = []
-import OpenGL.GL as GL
 from dGraph.ui import dglfw as fw
 from dGraph.ui.dglfw import *
 #from . import dglfw as fw
 #from .dglfw import *
-
-class RenderStack(list):
-    '''An object representing a renderable view of the scene graph
-    self - the renderStack
-    _objects - list of objects in the view
-    _cameras - list of cameras in the view
-    _display - what display the view is rendered for
-    _window - the window containing the OpenGL context for the view
-    _width, _height - width and height of the view
-    '''
-    def __init__(self, *args, **kwargs):
-        super(RenderStack,self).__init__(*args, **kwargs)
-        self._windows = []      # a renderStack can be displayed in multiple windows   
-        self._width = None
-        self._height = None
-        self.cameras = []       # just for convinience if wanted
-        self.objects = {}       # just for convinience if wanted
-        self.shaders = {}       # just for convinience if wanted
-        self.displays = []      # just for convinience if wanted
-    @property
-    def width(self):
-        if self._width is None:
-            self.calcSize()
-        return self._width
-    @property
-    def height(self):
-        if self._height is None:
-            self.calcSize()
-        return self._height
-    def calcSize(self):
-        width, height = (0,0)
-        for win in self._windows:
-            w,h = fw.get_window_size(win)
-            width = max(width, w)
-            height = max(height, h)
-        self._width = None if width == 0 else width
-        self._height = None if height == 0 else height 
-    @property
-    def windows(self):
-        return list(self._windows)
-    def addWindow(self, window):
-        self._windows.append(window)
-        id = get_window_id(window)
-        other = WINDOWSTACKS.get(id,None)
-        if other is not None:
-            other.removeWindow(window)
-        WINDOWSTACKS[id] = self
-        return window
-    def removeWindow(self, window):
-        self._windows.remove(window)
-        id = get_window_id(window)
-        WINDOWSTACKS.pop(id)
-
-    def graphicsCardInit(self):
-        ''' compile shaders and create VBOs and such '''
-        sceneGraphSet = set()
-        for node in self:
-            sceneGraphSet.update(node.setup(self.width, self.height))
-        for sceneGraph in sceneGraphSet:
-            for obj in sceneGraph:                                                      # convert the renderable objects in the scene
-                if obj.renderable:
-                    obj.generateVBO()
+WINDOWSTACKS = {}       # Each window can have 1 associated renderGraph
+WINDOWS = []
 
 class Display(object):
     ''' A class that defines the physical properties of a display '''
@@ -101,17 +39,18 @@ class Display(object):
         return (self.size[0]/self.resolution[0], self.size[1]/self.resolution[1])
 
 def resize_window_callback(window, w, h):
-    '''Need to figure out how to track this
+    ''' BROKEN - DON'T USE
+    Need to figure out how to track this
     what is rederStack -> window relationship??? '''
-    renderStack = WINDOWSTACKS[window]
+    renderGraph = WINDOWSTACKS[window]
     width = w if w > 1 else 2
     height = h if h > 1 else 2
-    renderStack._width = None
-    renderStack._height = None
+    renderGraph._width = None
+    renderGraph._height = None
     for cam in cameras:
         cam.setResolution((width/2, height))  # for binocular ???
-    for node in renderStack:
-        node.setup(renderStack.width, renderStack.height)
+    for node in renderGraph:
+        node.setup(renderGraph.width, renderGraph.height)
 
 def get_window_id(window):
     try:

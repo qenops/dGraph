@@ -1,4 +1,5 @@
 ﻿#!/usr/bin/env python
+# pylint: disable=bad-whitespace, line-too-long
 '''A library of graphics classes for defining a scene graph by using render stacks
 
 David Dunn
@@ -7,7 +8,7 @@ Oct 2014 - Added raytracing
 July 2015 - Added openGL support
 Jan 2017 - Redefined submodules
 
-ALL UNITS ARE IN METERS 
+ALL UNITS ARE IN METERS
     ie 1 cm = .01
 
 www.qenops.com
@@ -326,6 +327,7 @@ class WorldObject(object):
 def initGL():
     GL.glEnable(GL.GL_CULL_FACE)
     GL.glEnable(GL.GL_DEPTH_TEST)
+    GL.glEnable(GL.GL_MULTISAMPLE)
     GL.glDepthFunc(GL.GL_GREATER)
     #GL.glDepthFunc(GL.GL_LESS)
     GL.glDepthRange(0,1)

@@ -61,21 +61,20 @@ glNumpyToType={
     np.float32:GL_FLOAT,
 }
 def prepareImage(image):
-    iy, ix, channels = image.shape if len(image.shape)>2 else [image.shape[0], image.shape[1], 1]
+    ''' Take an image and convert it to the right format for loading into a texture
+    Returns all the information needed for creating a texture '''
+    iy, ix, channels = image.shape if len(image.shape) > 2 else [image.shape[0], image.shape[1], 1]
     img = image
-    #if channels == 1:
-    #    img = cv2.cvtColor(cv2.cvtColor(image,cv2.COLOR_GRAY2RGB),cv2.COLOR_RGB2RGBA)
-    #    channels = 4
     if channels == 4:
         if image.dtype.type == np.float64:  # if they are float64, they were loaded as numpy arrays, so don't swap channels
             img = image.astype(np.float32)
         else:
-            img = cv2.cvtColor(image,cv2.COLOR_BGRA2RGBA)
+            img = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
     elif channels == 3:  # Nvidia cards having trouble with 3 channel images, so convert it to 4
         if image.dtype.type == np.float64:  # if they are float64, they were loaded as numpy arrays, so don't swap channels
-            img = cv2.cvtColor(image.astype(np.float32),cv2.COLOR_RGB2RGBA)
+            img = cv2.cvtColor(image.astype(np.float32), cv2.COLOR_RGB2RGBA)
         else:
-            img = cv2.cvtColor(image,cv2.COLOR_BGR2RGBA)
+            img = cv2.cvtColor(image, cv2.COLOR_BGR2RGBA)
         channels = 4
     img = np.flipud(img)
     format = glChannelsFormat[channels]
@@ -96,6 +95,7 @@ def prepareImage(image):
     return img, iy, ix, channels, format, type, internalSizedFormat
 
 def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=GL_LINEAR_MIPMAP_LINEAR):
+    ''' allocate space on the gpu and transfer the data there '''
     img, height, width, channels, format, type, isf = prepareImage(image)
     #print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
     texture = glGenTextures(1)
@@ -120,6 +120,7 @@ def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=
     return texture
 
 def updateTexture(texture, image):
+    ''' load new data into an existing texture '''
     img, height, width, channels, format, type, isf = prepareImage(image)
     glBindTexture(GL_TEXTURE_2D, texture)
     # we should do some verification if the texture is as it should be
@@ -134,13 +135,15 @@ def updateTexture(texture, image):
     glBindTexture(GL_TEXTURE_2D, 0)
 
 def attachTexture(texture, shader, index):
-    attachTextureNamed(texture, shader, index, "tex%s"%index)
+    ''' attach a texture to a shader sampler2d with defalut name "tex#" '''
+    attachTextureNamed(texture, shader, index, 'tex%s'%index)
 
 def attachTextureNamed(texture, shader, index, samplerName):
-    GL.glActiveTexture(getattr(GL,'GL_TEXTURE%s'%index))                    # make texture register idx active
-    GL.glBindTexture(GL.GL_TEXTURE_2D, texture)                             # bind texture to register idx
-    texLoc = GL.glGetUniformLocation(shader, samplerName)                 # get location of our texture
-    GL.glUniform1i(texLoc, index)                                           # connect location to register idx
+    ''' attach a texture to a shader sampler2d '''
+    GL.glActiveTexture(getattr(GL, 'GL_TEXTURE%s'%index))       # make texture register idx active
+    GL.glBindTexture(GL.GL_TEXTURE_2D, texture)                 # bind texture to register idx
+    texLoc = GL.glGetUniformLocation(shader, samplerName)       # get location of our texture
+    GL.glUniform1i(texLoc, index)                               # connect location to register idx
 
 def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filterMin=GL_LINEAR_MIPMAP_LINEAR,filterMag=GL_LINEAR, levelCount=1):
     texture = glGenTextures(1)                           # setup our texture

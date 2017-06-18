@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pylint: disable=bad-whitespace, line-too-long
 '''A library of warp shaders for manipulating images
 
 David Dunn
@@ -19,8 +20,7 @@ import OpenGL.GL as GL
 from OpenGL.GL import shaders
 import ctypes, math
 import dGraph.textures as dgt
-import dGraph.materials as dgm
-_shaderHeader = dgm._shaderHeader
+import dGraph.config as config
 
 class Warp(object):
     ''' A warp class that takes an image and alters it in some manner '''
@@ -66,10 +66,10 @@ void main() {
     @property
     def vertexShader(self):
         '''The output of the vertex shader is clip coordinates (not viewport coordinates) - OpenGL still performs the "divide by w" step automatically.'''
-        return '%s%s'%(_shaderHeader, self._vertexShader)
+        return '%s%s'%(config.shaderHeader, self._vertexShader)
     @property
     def fragmentShader(self):
-        return '%s%s'%(_shaderHeader,self._fragmentShader)
+        return '%s%s'%(config.shaderHeader,self._fragmentShader)
     def pushRenderStack(self, newRenderStack):
         ''' Push an entire render stack onto our list all at once '''
         self._stackList.append(newRenderStack)
@@ -160,7 +160,7 @@ void main() {
             self.compileShader()
         GL.glUseProgram(self.shader)
         for idx in range(self._numWarp):                                        # attach our warp textures first
-            tex, frameBuffer, depthMap = self._warpList[idx] 
+            tex, frameBuffer, depthMap = self._warpList[idx]
             dgt.attachTexture(tex, self.shader, idx)
         for i, tex in enumerate(self._texList):                                 # then attach our normal textures
             idx = i + self._numWarp
@@ -177,9 +177,9 @@ void main() {
                 for i in range(self._numWarp):
                     dgt.attachTextureNamed(parentTextures, self.shader, self._numWarp + len(self._texList) + i, 'tex%dTexture2DFramebufferTexture2D' % i)
                     break
-            
-            self.uniform("resolution", levelRes);
-            self.uniform("mipLevelIndex", level);
+
+            self.uniform("resolution", levelRes)
+            self.uniform("mipLevelIndex", level)
 
             GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, (parentFrameBuffers[level] if len(parentFrameBuffers) > 0 else 0))              # Disable our frameBuffer so we can render to screen
             if clear:
@@ -270,7 +270,7 @@ class Convolution(Warp):
                 code.append('    FragColor = FragColor + texture2D(tex0, fragTexCoord + vec2(%s, %s))*%sf;\n'%(s, t, it[0]))
             it.iternext()
         code.append('}')
-        return '%s%s'%(_shaderHeader,''.join(code))
+        return '%s%s'%(config.shaderHeader,''.join(code))
     
 class Over(Warp):
     ''' A compisiting shader implimentation of the over function '''
@@ -331,7 +331,7 @@ class GaussMIPMap(Warp):
         super(GaussMIPMap, self).__init__(name, **kwargs)
     @property
     def fragmentShader(self):        
-        with open('shaders/GaussMIPTexture2DFragment.glsl', 'r') as fid:
+        with open('GaussMIPTexture2DFragment.glsl', 'r') as fid:
             code = ''.join([line for line in fid])
         return code
     @property
@@ -344,6 +344,6 @@ class DepthOfField(Warp):
         super(DepthOfField, self).__init__(name, **kwargs)
     @property
     def fragmentShader(self):        
-        with open('shaders/DepthOfFieldPerceptualFragment.glsl', 'r') as fid:
+        with open('DepthOfFieldPerceptualFragment.glsl', 'r') as fid:
             code = ''.join([line for line in fid])
         return code
