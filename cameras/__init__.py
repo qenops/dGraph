@@ -104,15 +104,9 @@ class Camera(WorldObject):
     def setup(self, width, height):
         ''' just an empty method for compatability with the render stack '''
         return set(self.getScene())
-    def render(self, width, height, renderStack=[], parentTextures=[], parentFrameBuffers=[], posWidth=0, clear=True):
+    def render(self):
         #print '%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear)
-        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, (parentFrameBuffers[0] if len(parentFrameBuffers) > 0 else 0))          # Render to our parentFrameBuffer, not screen
-        if clear:
-            #print '%s clearing. %s'%(self.__class__, self._name)
-            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        # should check if renderStack != [] and error or something
         sceneGraph = self.getScene()
-        GL.glViewport(posWidth, 0, width, height)                      # set the viewport to the portion we are drawing
         cameraMatrix = self.worldMatrix                               # get the camera matrix
         filmMatrix = self.filmMatrix
         # get the lights in the scene

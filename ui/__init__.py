@@ -62,8 +62,8 @@ def get_window_id(window):
 
 def close_window(window):
     id = get_window_id(window)
-    rs = WINDOWSTACKS.get(id, None)
-    if rs is not None:
-        rs.removeWindow(window)
+    rg = WINDOWSTACKS.get(id, None)
+    if rg is not None:
+        rg.removeWindow(window)
     WINDOWS[id] = None
     fw.set_window_should_close(window, True)

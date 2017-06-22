@@ -94,28 +94,51 @@ def prepareImage(image):
     internalSizedFormat = namespace['internalSizedFormat']
     return img, iy, ix, channels, format, type, internalSizedFormat
 
-def createTexture(image, numMipmaps=1,wrap=GL_REPEAT,filter=GL_LINEAR,mipfilter=GL_LINEAR_MIPMAP_LINEAR):
+def createTexture(image, mipLevels=1,wrap=GL_REPEAT,filterMag=GL_LINEAR,filterMin=GL_LINEAR_MIPMAP_LINEAR):
     ''' allocate space on the gpu and transfer the data there '''
     img, height, width, channels, format, type, isf = prepareImage(image)
     #print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
-    texture = glGenTextures(1)
-    glBindTexture(GL_TEXTURE_2D, texture)
+    #texture = glGenTextures(1)
+    #glBindTexture(GL_TEXTURE_2D, texture)
     #glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, img)
-    glTexStorage2D(GL_TEXTURE_2D, numMipmaps, isf, width, height)
+    #glTexStorage2D(GL_TEXTURE_2D, mipLevels, isf, width, height)
+    
+    #glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
+
+    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
+    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
+    #if mipLevels > 1:
+    #    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipfilter)
+    #else:
+    #    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
+    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
+    if filterMin == GL_LINEAR_MIPMAP_LINEAR and mipLevels == 1: filterMin = filterMag 
+    texture = createEmptyTexture(**locals())
+    glBindTexture(GL_TEXTURE_2D, texture)
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
-    if numMipmaps < 1:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipfilter)
-    else:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
     # we should do some verification if the texture is as it should be
     #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT)
     #int(GL_RGBA)
     #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_TYPE)
     #int(GL_UNSIGNED_NORMALIZED)
     #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_RED_SIZE)
+    glBindTexture(GL_TEXTURE_2D, 0)
+    return texture
+
+def createEmptyTexture(width, height, mipLevels=1, wrap=GL_MIRRORED_REPEAT, filterMag=GL_LINEAR, filterMin=GL_LINEAR_MIPMAP_LINEAR, type=GL_UNSIGNED_BYTE, isf=GL_RGBA8,**kwargs):
+    ''' allocate space on the gpu for a texture, but do not fill it with anything '''
+    texture = glGenTextures(1)                           # setup our texture
+    glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
+    glTexStorage2D(GL_TEXTURE_2D, mipLevels, isf, width, height)
+    #levelRes = np.array([width, height], int)
+    #for level in range(mipLevels):
+        #glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, type, None)   # Allocate memory
+        #levelRes = np.maximum(levelRes / 2, 1).astype(int)
+    # set the parameters for filtering
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMin)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMag)
     glBindTexture(GL_TEXTURE_2D, 0)
     return texture
 
@@ -134,6 +157,13 @@ def updateTexture(texture, image):
     #   pass
     glBindTexture(GL_TEXTURE_2D, 0)
 
+def createDepthRenderBuffer(width, height):
+    depthBuffer = glGenRenderbuffers(1)
+    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer)
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height)
+    glBindRenderbuffer(GL_RENDERBUFFER, 0)
+    return depthBuffer
+
 def attachTexture(texture, shader, index):
     ''' attach a texture to a shader sampler2d with defalut name "tex#" '''
     attachTextureNamed(texture, shader, index, 'tex%s'%index)
@@ -146,6 +176,7 @@ def attachTextureNamed(texture, shader, index, samplerName):
     GL.glUniform1i(texLoc, index)                               # connect location to register idx
 
 def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filterMin=GL_LINEAR_MIPMAP_LINEAR,filterMag=GL_LINEAR, levelCount=1):
+    ''' DEPRECATED - use createEmptyTexture for color and depth and create fbos yourself'''
     texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
     levelRes = np.array([width, height], int)
@@ -153,10 +184,10 @@ def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filt
         glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, type, None)   # Allocate memory
         levelRes = np.maximum(levelRes / 2, 1).astype(int)
 
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMin);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMag);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterMin)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterMag)
     glBindTexture(GL_TEXTURE_2D, 0)
 
     ## create a renderbuffer object to store depth info
@@ -166,7 +197,7 @@ def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filt
     #glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
     # use depth texture instead because we can then read it in a probably less not good way
-    depthMap = glGenTextures(1) 
+    depthMap = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, depthMap)
     levelRes = np.array([width, height], int)
     for level in range(levelCount):
@@ -179,7 +210,7 @@ def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filt
     for level in range(levelCount):
         frameBuffer = glGenFramebuffers(1)                                                              # Create frame buffer
         glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer)                                                  # Bind our frame buffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, level)         # Attach texture to frame buffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, level)        # Attach texture to frame buffer
         #glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer)    # Attach render buffer to depth buffer
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, level); # Attach depth texture
         glBindFramebuffer(GL_FRAMEBUFFER, 0)

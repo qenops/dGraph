@@ -31,16 +31,24 @@ import OpenGL.GL as GL
 from . import xformMatrix as xm
 from .dio import obj as obj
 
-class SceneGraph(object):
+class SceneGraph(dict):
     ''' A top level object that houses everything in a scene '''
     def __init__(self, file=None):
         self._children = []
         self.worldMatrix = xm.eye(4)
+        self.renderGraph = None
         # could put the new light and new material members here - and keep track of them here rather than in the class
-        # maybe a good place to store a dict of all the objects in the scene? - for searching and stuff
+        # maybe a good place to store a dict of all the objects in the scene? - for searching and stuff  - DONE!!!
     def __iter__(self):
         for v in chain(*imap(iter, self._children)):
             yield v
+    def add(self, member):
+        if member.name in self:
+            raise ValueError('Object with name: %s already exists in scene.'%member.name)
+        else:
+            self[member.name] = member
+        # maybe we could categorize them, or create a method for looking for objects of a certain type, ie all lights?
+        return member
     def addChild(self, child):
         self._children.append(child)
     def removeChild(self, child):
@@ -52,6 +60,8 @@ class SceneGraph(object):
             #probably some warning about saving existing scene first???
             pass
         pass
+    def render(self):
+        self.renderGraph.render()
 
 class ComparableMixin(object):
     def __eq__(self, other):
@@ -204,6 +214,8 @@ class WorldObject(object):
         return '%s'%self.name
     def __repr__(self):
         return '%s'%self.name
+    def category(self):
+        return 'object'
     @property
     def name(self):
         return self._name

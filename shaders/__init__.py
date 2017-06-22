@@ -40,7 +40,6 @@ class Warp(object):
         self._warpList = []     # list of tuples containing (texture, frameBuffer) pair
         self._texImages = []      # list containing texture images
         self._texList = []      # list containing all textures
-        self._stackList = []
         self.shader = None
         self._vertexShader = '''
 in vec3 position;
@@ -78,7 +77,6 @@ void main() {
             shaders.compileShader(self.vertexShader, GL.GL_VERTEX_SHADER),
             shaders.compileShader(self.fragmentShader, GL.GL_FRAGMENT_SHADER)
         )
-
     def uniform(self, name, value):
         ''' Sets up uniform (not sampler, just like float and stuff) '''
         location = GL.glGetUniformLocation(self.shader, name)
@@ -86,9 +84,8 @@ void main() {
             return
         if type(value) == int:
             GL.glProgramUniform1i(self.shader, location, value)
-
-    def setup(self, width, height): #, warpOnly=False):
-        ''' Setup our geometry and buffers and compile our shaders '''
+    def setup(self, width, height):
+        ''' Setup our geometry and compile our shaders '''
         if self._setup:
             return set()
         self._width = width
@@ -137,7 +134,7 @@ void main() {
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
     def render(self, width, height, renderStack, parentTextures=[], parentFrameBuffers=[], posWidth=0, clear=True):
-        ''' Recursively render the render stack and render as texture to my geometry '''
+        ''' Render incoming textures' framebuffesr then run our shader on our geometry '''
         #if width != self._width or height != self._height:
             #print '%sx%s to %sx%s'%(self._width, self._height, width, height)
             #self.setup(width, height, True)

@@ -33,32 +33,33 @@ MODELDIR = '%s/data'%os.path.dirname(__file__)
 def loadScene(renderGraph,file=None):                
     '''Load or create our sceneGraph'''
     backScene = dg.SceneGraph(file)
-    bCam = dgc.Camera('back', backScene)
+    bCam = backScene.add(dgc.Camera('back', backScene))
     bCam.setResolution((renderGraph.width, renderGraph.height))
     bCam.setTranslate(0.,0.,0.)
     bCam.setFOV(50.)
-    renderGraph.cameras.append(bCam)
-    cube = dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%MODELDIR)
+    cube = backScene.add(dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%MODELDIR))
     cube.setScale(.4,.4,.4)
     cube.setTranslate(0.,0.,-2.)
     cube.setRotate(25.,65.,23.)
-    renderGraph.objects['cube'] = cube
+    renderGraph.scenes.append(backScene)
     
     frontScene = dg.SceneGraph(file)
-    fCam = dgc.Camera('front', frontScene)
+    fCam = frontScene.add(dgc.Camera('front', frontScene))
     fCam.setResolution((renderGraph.width, renderGraph.height))
     fCam.translate.connect(bCam.translate)
     fCam.rotate.connect(bCam.rotate)
     fCam.setFOV(50.)
-    teapot = dgs.PolySurface('teapot', frontScene, file = '%s/teapot.obj'%MODELDIR)
+    teapot = frontScene.add(dgs.PolySurface('teapot', frontScene, file = '%s/teapot.obj'%MODELDIR))
     teapot.setScale(.4,.4,.4)
     teapot.setTranslate(.5,-.2,-1.5)
     teapot.setRotate(5.,0.,0.)
-    renderGraph.objects['teapot'] = teapot
+    renderGraph.scenes.append(frontScene)
     
-    material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-    for obj in renderGraph.objects.values():
-        obj.setMaterial(material1)
+    material1 = backScene.add(frontScene.add(dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)))
+    for scene in renderGraph.scenes:
+        for obj in scene.values():
+            if isinstance(obj, dgs.Shape):
+                obj.setMaterial(material1)
     
     renderGraph.focus = 2.
     renderGraph.focusChanged = False
@@ -70,7 +71,6 @@ def loadScene(renderGraph,file=None):
     renderGraph.shaders['ftBlur'] = ftBlur
     ftBlur._width = renderGraph.width
     ftBlur._height = renderGraph.height
-    print(ftBlur.fragmentShader)
     
     bkBlur = dgshdr.Convolution('bkBlur')
     kernel = im.getPSF(renderGraph.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
@@ -142,27 +142,34 @@ def setup():
     dg.initGL()
     scene = loadScene(renderGraph)
     renderGraph.graphicsCardInit()
-    return renderGraph, scene, [mainWindow]
+    return scene, [mainWindow]
 
-def runLoop(renderGraph, mainWindow):
+def runLoop(scene, mainWindow):
     # Print message to console, and kick off the loop to get it rolling.
     print("Hit ESC key to quit.")
-    print("Use Up/Down to change focal depth.")
     frame = 0
+    totalSleep = 0
     start = time.time()
     while not ui.window_should_close(mainWindow):
         ui.make_context_current(mainWindow)
-        drawScene(renderGraph)
+        scene.render()
         now = time.time()
-        time.sleep(max((frame+1)/config.maxFPS+start-now,0))
+        toSleep = max(0,(frame+1)/config.maxFPS+start-now)
+        time.sleep(toSleep)
         ui.swap_buffers(mainWindow)
         ui.poll_events()
-        animateScene(renderGraph, frame)
+        animateScene(scene, frame)
+        totalSleep += toSleep
         frame += 1
+    end = time.time()
     ui.terminate()
+    elapsed = end-start
+    computePct = (1-totalSleep/elapsed)*100
+    print('Slept %.4f seconds of a total %.4f seconds.\nRendering %.2f%% of the time.'%(totalSleep,elapsed,computePct))
     exit(0)
 
 if __name__ == '__main__':
-    renderGraph, scene, windows = setup()
-    addInput(renderGraph)
-    runLoop(renderGraph, windows[0])
+    scene, windows = setup()
+    addInput(scene)
+    runLoop(scene, windows[0])
+
