@@ -4,13 +4,13 @@
 #endif
 in vec2 fragTexCoord;
 
-uniform sampler2D tex0;
+uniform sampler2D inputImage;
 uniform int mipLevelIndex;
 
 // Force location to 0 to ensure its the first output
 layout (location = 0) out vec4 FragColor;
 
-uniform sampler2D tex0Texture2DFramebufferTexture2D;
+uniform sampler2D inputImageTexture2DFramebufferTexture2D;
 
 void main() {	
 	
@@ -24,18 +24,19 @@ void main() {
 	* something with 5 samples and linear interpolation
 	*/
 
+
 	if (mipLevelIndex == 0) {
-		FragColor = texture(tex0, fragTexCoord);
+		FragColor = texture(inputImage, fragTexCoord);
 		return;
 	}
 
-	//FragColor = textureLod(tex0Texture2DFramebufferTexture2D, fragTexCoord, mipLevelIndex - 1); return;
+	//FragColor = textureLod(inputImage, fragTexCoord, 0);
 	
 	// probably the correct kernel
 	vec2 coord = fragTexCoord;
 	
-	float x = 1.0 / textureSize(tex0Texture2DFramebufferTexture2D, mipLevelIndex - 1).x;
-	float y = 1.0 / textureSize(tex0Texture2DFramebufferTexture2D, mipLevelIndex - 1).y;
+	float x = 1.0 / textureSize(inputImageTexture2DFramebufferTexture2D, mipLevelIndex - 1).x;
+	float y = 1.0 / textureSize(inputImageTexture2DFramebufferTexture2D, mipLevelIndex - 1).y;
 	
 	const int kernelSize = 2;
 	float kernel[] = float [](1, 4, 6, 4, 1);
@@ -47,7 +48,7 @@ void main() {
 	for(int i = -kernelSize; i <= kernelSize; i++){
 		for(int j = -kernelSize; j <= kernelSize; j++){
 			float k = kernel[i + kernelSize] * kernel[j + kernelSize];
-			value += textureLod(tex0Texture2DFramebufferTexture2D, coord + vec2(i * x, j * y), mipLevelIndex - 1) * k;
+			value += textureLod(inputImageTexture2DFramebufferTexture2D, coord + vec2(i * x, j * y), mipLevelIndex - 1) * k;
 			weight += k;
 		}
 	}

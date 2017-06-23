@@ -25,6 +25,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cameras\__init__.py" />
+    <Compile Include="config.py" />
     <Compile Include="io\obj.py" />
     <Compile Include="io\__init__.py" />
     <Compile Include="kdtree.py" />
@@ -32,6 +33,8 @@
     <Compile Include="materials\warp.py" />
     <Compile Include="materials\__init__.py" />
     <Compile Include="ray.py" />
+    <Compile Include="render\__init__.py" />
+    <Compile Include="shaders\__init__.py" />
     <Compile Include="shapes\implicits.py" />
     <Compile Include="shapes\__init__.py" />
     <Compile Include="test\test0.py" />
@@ -42,6 +45,7 @@
     <Compile Include="test\test4.py" />
     <Compile Include="test\test5.py" />
     <Compile Include="test\test6.py" />
+    <Compile Include="test\testDoF2.py" />
     <Compile Include="test\__init__.py" />
     <Compile Include="textures\__init__.py" />
     <Compile Include="ui\dglfw.py" />
@@ -57,6 +61,8 @@
     <Folder Include="io" />
     <Folder Include="lights" />
     <Folder Include="materials" />
+    <Folder Include="render\" />
+    <Folder Include="render\__pycache__\" />
     <Folder Include="shaders\" />
     <Folder Include="shapes" />
     <Folder Include="test" />
@@ -68,6 +74,7 @@
     <InterpreterReference Include="{c374890c-e3cd-4c53-854b-00833a403161}\3.5" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="render\__pycache__\__init__.cpython-35.pyc" />
     <Content Include="shaders\DepthOfFieldPerceptualFragment.glsl" />
     <Content Include="shaders\GaussMIPTexture2DFragment.glsl" />
   </ItemGroup>

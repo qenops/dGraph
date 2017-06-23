@@ -4,7 +4,7 @@ precision highp float;
 #endif
 in vec2 fragTexCoord;
 
-uniform sampler2D tex0;
+uniform sampler2D image;
 
 uniform float minDepthMeters;	// assumed in diopters
 uniform float maxDepthMeters;	// assumed in diopters
@@ -113,6 +113,5 @@ float getCircleOfConfusionRadius(float focusDistanceM, float targetDistanceM) {
 
 
 void main() {
-	FragColor = doubleBicubicTextureFullPass(tex0, fragTexCoord, 4);
-	//FragColor.z = 1;
+	FragColor = doubleBicubicTextureFullPass(image, fragTexCoord, 4);
 }

@@ -19,7 +19,7 @@ import numpy as np
 import OpenGL.GL as GL
 from OpenGL.GL import *
 from OpenGL.GL import shaders
-import ctypes, math
+import ctypes, math, os
 import dGraph.textures as dgt
 import dGraph.config as config
 import cv2
@@ -124,7 +124,7 @@ void main() {
         #for stack in self._stackList:
         #    for node in stack:
         #        sceneGraphSet.update(node.setup(width, height))
-        #self._setup = True
+        self._setup = True
         return sceneGraphSet
     def setupGeo(self):
         ''' setup geometry and vbos '''
@@ -147,30 +147,39 @@ void main() {
         glDisableVertexAttribArray(shader_uvs)
         glBindBuffer(GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
-    def render(self,resetFBO):
+    def render(self,resetFBO,mipLevel=0):
         ''' Render incoming textures' framebuffers then run our shader on our geometry '''
-        #print('%s entering render. %s'%(self.__class__, self._name))
-        for frameBuffer in self._upstreamBuffers:
-            frameBuffer.render(resetFBO)
+        if mipLevel == 0:
+            for frameBuffer in self._upstreamBuffers:
+                frameBuffer.render(resetFBO)
         if self.shader is None:                                                 # make sure our shader is compiled
             self.compileShader()
         glUseProgram(self.shader)
         for idx, (samplerName, texture) in enumerate(self._textures.items()):
-            '''
-            data = dgt.readTexture(texture, 0)
-            cv2.imshow('%s:%s:%s'%(self._name,samplerName,texture),data)
-            cv2.waitKey()
-            '''
-            #print('%s attaching texture %s to sampler %s on index %s'%(self._name, texture, samplerName, idx))
             dgt.attachTextureNamed(texture, self.shader, idx, samplerName)
+
         glBindVertexArray(self.vertexArray)                                      # bind our vertex array
-        #print('%s executing render. %s'%(self.__class__, self._name))
+
+        levelRes = self.getLevelSize(mipLevel)
+        if mipLevel > 0:
+            # bind previous outputs as inputs
+            samplerName = '%sTexture2DFramebufferTexture2D' % ([key for key in self._textures.keys()][0])
+            dgt.attachTextureNamed(resetFBO.rgba(), self.shader, len(self._textures), samplerName)
+                    
+        setUniform(self.shader, "resolution", levelRes)
+        setUniform(self.shader, "mipLevelIndex", mipLevel)
+        
+        location = np.array([0, 0, 1, 1])
+        if not resetFBO is None:
+            for subimage, subLoc in resetFBO.subimages:
+                if subimage == self:
+                    location = subLoc
+                    break
+        glViewport(*(levelRes*location).flatten())                      # set the viewport to the portion we are drawing
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
+            
         glBindVertexArray(0)
         glUseProgram(0)
-        #print('%s leaving render. %s'%(self.__class__, self._name))
-        # should probably return the set of upstream nodes (and thiers) and add ourselves to avoid duplicate rendering in a single frame
-        # we could then have a flag for frameRendered or frameComplete that gets checked at beginning of method and reset with new frame
     @property
     def mipLevelCount(self):
         return 1
@@ -178,6 +187,18 @@ void main() {
     def maxLevelCount(self):
         size = max(self._width, self._height)
         return int(math.floor(math.log(size) / math.log(2.0))) + 1
+    @property
+    def shadersPath(self):
+        return os.path.dirname(os.path.realpath(__file__))
+    def loadShaderCode(self, filename):
+        with open(os.path.join(self.shadersPath, filename), 'r') as fid:
+            code = ''.join([line for line in fid])
+        return code
+    def getLevelSize(self, level):
+        levelRes = np.array([self._width, self._height],int)
+        for i in range(level):
+            levelRes = np.maximum(levelRes / 2, 1).astype(int)
+        return levelRes
 
 class Contrast(Warp):
     ''' A shader that will decrease or increase the contrast of an image '''
@@ -312,41 +333,19 @@ class GaussMIPMap(Warp):
         super(GaussMIPMap, self).__init__(name, **kwargs)
     @property
     def fragmentShader(self):        
-        with open('GaussMIPTexture2DFragment.glsl', 'r') as fid:
-            code = ''.join([line for line in fid])
-        return code
+        return self.loadShaderCode('GaussMIPTexture2DFragment.glsl')
     @property
     def mipLevelCount(self):
         return self.maxLevelCount
-    def render(self):
-        # need to add all the stuff the parent method does - I don't think we can call super, or maybe we can, since it just does level 1, then we do the rest?
-        # for all mip levels
-        levelRes = np.array([width, height],int)
-        for level in range(self.mipLevelCount):
-            if level > 0:
-                # bind previous outputs as inputs
-                for i in range(self._numWarp):
-                    dgt.attachTextureNamed(parentTextures, self.shader, len(self._textures) + i, 'tex%dTexture2DFramebufferTexture2D' % i)
-                    break
 
-            setUniform(self.shader, "resolution", levelRes)
-            setUniform(self.shader, "mipLevelIndex", level)
+    
 
-            glBindFramebuffer(GL_FRAMEBUFFER, (parentFrameBuffers[level] if len(parentFrameBuffers) > 0 else 0))              # Disable our frameBuffer so we can render to screen
-            if clear:
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-            glViewport(posWidth, 0, levelRes[0], levelRes[1])                               # set the viewport to the portion we are drawing
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
-            levelRes = np.maximum(levelRes / 2, 1).astype(int)
-        glUseProgram(0)
+        
     
 
 class DepthOfField(Warp):
     def __init__(self, name, **kwargs):
         super(DepthOfField, self).__init__(name, **kwargs)
     @property
-    def fragmentShader(self):        
-        with open('DepthOfFieldPerceptualFragment.glsl', 'r') as fid:
-            code = ''.join([line for line in fid])
-        return code
+    def fragmentShader(self):       
+        return self.loadShaderCode('DepthOfFieldPerceptualFragment.glsl') 

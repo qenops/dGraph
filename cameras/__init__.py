@@ -107,7 +107,7 @@ class Camera(WorldObject):
         toRtn = set()
         toRtn.add(self.getScene())
         return toRtn
-    def render(self,resetFBO):
+    def render(self,resetFBO,mipLevel=0):
         #print('%s entering render. %s'%(self.__class__, self._name))
         sceneGraph = self.getScene()
         cameraMatrix = self.worldMatrix                               # get the camera matrix

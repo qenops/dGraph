@@ -116,10 +116,6 @@ def createEmptyTexture(width, height, mipLevels=1, wrap=GL_MIRRORED_REPEAT, filt
     texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
     glTexStorage2D(GL_TEXTURE_2D, mipLevels, isf, width, height)
-    #levelRes = np.array([width, height], int)
-    #for level in range(mipLevels):
-        #glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, gltype, None)   # Allocate memory
-        #levelRes = np.maximum(levelRes / 2, 1).astype(int)
     # set the parameters for filtering
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)

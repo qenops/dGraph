@@ -120,11 +120,11 @@ class RenderGraph(dict):
                     sceneGraph[objName].generateVBO()
     def render(self):
         ''' renders the our framebuffer to screen '''
-        self.frameBuffer.render(0)
+        self.frameBuffer.render(None)
 
 class FrameBuffer(object):
     ''' An object to manage openGL framebuffers '''
-    def __init__(self, name, onScreen=True, depthIsTexture=False):
+    def __init__(self, name, onScreen=True, depthIsTexture=False,mipLevels=1):
         self._name = name
         self.classifier = 'frameBuffer'
         self.onScreen = onScreen
@@ -134,6 +134,7 @@ class FrameBuffer(object):
         self.subimages = []
         self.textures = {}  # 'Name': GLid
         self._setup = False
+        self.mipLevels = mipLevels
     @property
     def name(self):     # a read only attribute
         return self._name
@@ -156,37 +157,39 @@ class FrameBuffer(object):
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.depth())# Attach render buffer to depth buffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         return frameBuffer
+
     def setup(self, width, height):
         ''' create the FBO and textures and setup all inputs '''
         if self._setup:
             return set()
         self.setResolution(width,height)
         if not self.onScreen:
-            rgba = dgt.createEmptyTexture(width,height)
+            rgba = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels)
             self.textures['rgba'] = rgba
             if self.depthIsTexture:
-                depth = dgt.createEmptyTexture(width,height,isf=GL_DEPTH_COMPONENT)
+                depth = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels,isf=GL_DEPTH_COMPONENT)
             else:
                 depth = createDepthRenderBuffer(width,height)
             self.textures['depth'] = depth
-            self.fbos = [self.createFBO()]
+            for level in range(self.mipLevels):
+                self.fbos.append(self.createFBO(level))
         sceneGraphSet = set()
         for subimage, location in self.subimages:
             sceneGraphSet.update(subimage.setup(width,height))
         self._setup = True
         return sceneGraphSet
-    def render(self,resetFBO):
+
+    def render(self,resetFBO,mipLevel=0):
         ''' Renders the subimages to the frame buffers '''
         #print('%s entering render. %s'%(self.__class__, self._name))
-        for fbo in self.fbos:
+        for level, fbo in enumerate(self.fbos):
             #print('%s setting fbo to %s'%(self._name, fbo))
             glBindFramebuffer(GL_FRAMEBUFFER, fbo)          # Render to ourselves
             if self.clear:
                 #print('%s is clearing DEPTH AND COLOR'%self.name)
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             for subimage, location in self.subimages:
-                glViewport(*(self.resolution*location).flatten())                      # set the viewport to the portion we are drawing
-                subimage.render(fbo)
+                subimage.render(self, level)
             '''
             data = readFramebuffer(0, 0, self.resolution[0], self.resolution[1], GL_RGBA, GL_UNSIGNED_BYTE)
             cv2.imshow('%s:%s'%(self._name,fbo),data)
@@ -200,29 +203,11 @@ class FrameBuffer(object):
                 pass
             '''
             #print('%s setting fbo to %s'%(self._name, resetFBO))
-            glBindFramebuffer(GL_FRAMEBUFFER, resetFBO)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0 if resetFBO is None else resetFBO.fbos[min(mipLevel,len(self.fbos)-1)])
         #print('%s leaving render. %s'%(self.__class__, self._name))
         # should probably return the set of upstream nodes (and thiers) and add ourselves to avoid duplicate rendering in a single frame
         # we could then have a flag for frameRendered or frameComplete that gets checked at beginning of method and reset with new frame
 
-class MipFrameBuffer(FrameBuffer):
-    ''' An object to manage mipmapped openGL framebuffers '''
-    def __init__(self, mipLevels=1):
-        super().__init__(onScreen=False,depthIsTexture=True)
-        self.mipLevels = mipLevels
-    def setup(self, width, height):
-        self.setResolution(width,height)
-        rgba = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels)
-        self.textures['rgba'] = rgba
-        if self.depthIsTexture:
-            depth = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels,isf=GL_DEPTH_COMPONENT)
-        else:
-            depth = createDepthRenderBuffer(width,height)
-        self.textures['depth'] = depth
-        for level in range(self.mipLevels):
-            fbos.append(self.createFBO(level))
-        sceneGraphSet = set()
-        for subimage, location in self.subimages:
-            sceneGraphSet.update(subimage.setup(width,height))
-        return sceneGraphSet
+
+
 
