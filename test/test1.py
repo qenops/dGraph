@@ -19,7 +19,7 @@ import OpenGL.GL as GL
 import math, os
 import numpy as np
 import dGraph as dg
-import dGraph.ui as ui
+import dGraph.ui as dgui
 import dGraph.render as dgr
 import dGraph.cameras as dgc
 import dGraph.shapes as dgs
@@ -30,9 +30,9 @@ import time
 
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 
-def loadScene(renderGraph,file=None):
+def loadScene(renderGraph):
     '''Load or create our sceneGraph'''
-    scene = dg.SceneGraph(file)
+    scene = dg.SceneGraph('Test1_SG')
     cam = scene.add(dgc.Camera('cam', scene))
     cam.setResolution((renderGraph.width, renderGraph.height))
     cam.setTranslate(0.,0.,0.)
@@ -68,7 +68,7 @@ def loadScene(renderGraph,file=None):
     jupiterMaterial = scene.add(dgm.Lambert('jupiterMaterial',ambient=(0,0,0), amb_coeff=0., diffuse=(.867,.71875,.527), diff_coeff=1))
     jupiter.setMaterial(jupiterMaterial)
     renderGraph.frameBuffer.connectInput(cam)
-    scene.renderGraph = renderGraph
+    scene.add(renderGraph)
     return scene                                                         # Initialization Successful
 
 def animateScene(scene, frame):
@@ -80,19 +80,19 @@ def animateScene(scene, frame):
               'moon':   (0.075,     28,         28      ),
               'mars':   (0.8,      687,          1.03   ),
               'jupiter':(1.2,     4332.59,       0.4135 )} 
-    for k, v in scene.items():
+    for k in scene.shapes:
         if k in speeds:
             dist, orbit, rot = speeds[k]
             # add rot when we have textures -  but will mess up children
             x =  math.cos(math.pi/2/orbit*frame) * dist
             z =  math.sin(math.pi/2/orbit*frame) * dist
-            v.translate = np.array((x,0.,z))
+            scene[k].translate = np.array((x,0.,z))
 
 def addInput(scene):
-    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, scene=scene, direction=3)
-    ui.add_key_callback(arrowKey, ui.KEY_LEFT, scene=scene, direction=2)
-    ui.add_key_callback(arrowKey, ui.KEY_UP, scene=scene, direction=1)
-    ui.add_key_callback(arrowKey, ui.KEY_DOWN, scene=scene, direction=0)
+    dgui.add_key_callback(arrowKey, dgui.KEY_RIGHT, scene=scene, direction=3)
+    dgui.add_key_callback(arrowKey, dgui.KEY_LEFT, scene=scene, direction=2)
+    dgui.add_key_callback(arrowKey, dgui.KEY_UP, scene=scene, direction=1)
+    dgui.add_key_callback(arrowKey, dgui.KEY_DOWN, scene=scene, direction=0)
 
 ''' In order to do input with mouse and keyboard, we need to setup a state machine with 
 states switches from mouse presses and releases and certain key presses 
@@ -111,17 +111,17 @@ def arrowKey(window,scene,direction):
         print(scene['sun'].rotate)
 
 def setup():
-    renderGraph = dgr.RenderGraph()
-    renderGraph.displays.append(ui.Display(resolution=(1920,1200)))
-    ui.init()
+    renderGraph = dgr.RenderGraph('Test1_RG')
+    display = renderGraph.add(dgui.Display('Fake Display',resolution=(1920,1200)))
+    dgui.init()
     offset = (0,0)
-    mainWindow = renderGraph.addWindow(ui.open_window('Scene Graph Test', offset[0], offset[1], renderGraph.displays[0].width, renderGraph.displays[0].height))
+    mainWindow = renderGraph.add(dgui.open_window('Scene Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:
-        ui.terminate()
+        dgui.terminate()
         exit(1)
-    x, y = ui.get_window_pos(mainWindow)
-    width, height = ui.get_window_size(mainWindow)
-    ui.add_key_callback(ui.close_window, ui.KEY_ESCAPE)
+    x, y = dgui.get_window_pos(mainWindow)
+    width, height = dgui.get_window_size(mainWindow)
+    dgui.add_key_callback(dgui.close_window, dgui.KEY_ESCAPE)
     dg.initGL()
     scene = loadScene(renderGraph)
     renderGraph.graphicsCardInit()
@@ -133,22 +133,24 @@ def runLoop(scene, mainWindow):
     frame = 0
     totalSleep = 0
     start = time.time()
-    while not ui.window_should_close(mainWindow):
-        ui.make_context_current(mainWindow)
+    while not dgui.window_should_close(mainWindow):
+        dgui.make_context_current(mainWindow)
         scene.render()
         now = time.time()
         toSleep = max(0,(frame+1)/config.maxFPS+start-now)
         time.sleep(toSleep)
-        ui.swap_buffers(mainWindow)
-        ui.poll_events()
+        dgui.swap_buffers(mainWindow)
+        dgui.poll_events()
         animateScene(scene, frame)
         totalSleep += toSleep
         frame += 1
     end = time.time()
-    ui.terminate()
+    dgui.terminate()
     elapsed = end-start
     computePct = (1-totalSleep/elapsed)*100
-    print('Slept %.4f seconds of a total %.4f seconds.\nRendering %.2f%% of the time.'%(totalSleep,elapsed,computePct))
+    renderTime = elapsed-totalSleep
+    frameTime = renderTime/frame*1000
+    print('Average frame took %.4f ms to render.\nRendered %.4f seconds of a total %.4f seconds.\nRendering %.2f%% of the time.'%(frameTime,renderTime,elapsed,computePct))
     exit(0)
 
 if __name__ == '__main__':

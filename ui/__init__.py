@@ -22,9 +22,12 @@ from dGraph.ui.dglfw import *
 WINDOWSTACKS = {}       # Each window can have 1 associated renderGraph
 WINDOWS = []
 
+# should look at glfw Monitor objects
 class Display(object):
-    ''' A class that defines the physical properties of a display '''
-    def __init__(self, resolution=(1080,1920), size=(.071,.126), bezel=((.005245,.005245),(.01,.01)),location=(0.,0.,0.)):  # default to Samsung Note 3
+    ''' A class that defines the physical properties of a display AKA a monitor'''
+    def __init__(self, name, resolution=(1080,1920), size=(.071,.126), bezel=((.005245,.005245),(.01,.01)),location=(0.,0.,0.)):  # default to Samsung Note 3
+        self.name = name
+        self.classifier = 'display'
         self.resolution = resolution
         self.size = size
         self.bezel = bezel

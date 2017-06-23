@@ -28,26 +28,44 @@ else:
     imap = map
 import OpenGL.GL as GL
 
-from . import xformMatrix as xm
-from .dio import obj as obj
+import dGraph.xformMatrix as xm
+import dGraph.dio.obj as obj
 
 class SceneGraph(dict):
     ''' A top level object that houses everything in a scene '''
-    def __init__(self, file=None):
+    def __init__(self, name, file=None):
+        self._name = name
+        self.classifier = 'scene'
         self._children = []
         self.worldMatrix = xm.eye(4)
-        self.renderGraph = None
+        self.renderGraphs = set()
+        self.cameras = set()
+        self.shapes = set()
+        self.materials = set()
+        self.lights = set()
         # could put the new light and new material members here - and keep track of them here rather than in the class
         # maybe a good place to store a dict of all the objects in the scene? - for searching and stuff  - DONE!!!
-    def __iter__(self):
-        for v in chain(*imap(iter, self._children)):
-            yield v
+    def __hash__(self):
+        return hash(self._name)  
+    @property
+    def name(self):     # a read only attribute
+        return self._name
     def add(self, member):
         if member.name in self:
             raise ValueError('Object with name: %s already exists in scene.'%member.name)
         else:
             self[member.name] = member
-        # maybe we could categorize them, or create a method for looking for objects of a certain type, ie all lights?
+            # maybe we could categorize them, or create a method for looking for objects of a certain type, ie all lights?
+            if member.classifier == 'renderGraph':
+                self.renderGraphs.add(member.name)
+            elif member.classifier == 'camera':
+                self.cameras.add(member.name)
+            elif member.classifier == 'shape':
+                self.shapes.add(member.name)
+            elif member.classifier == 'material':
+                self.materials.add(member.name)
+            elif member.classifier == 'light':
+                self.lights.add(member.name)
         return member
     def addChild(self, child):
         self._children.append(child)
@@ -61,7 +79,8 @@ class SceneGraph(dict):
             pass
         pass
     def render(self):
-        self.renderGraph.render()
+        for rg in self.renderGraphs:
+            self[rg].render(0)
 
 class ComparableMixin(object):
     def __eq__(self, other):
@@ -198,6 +217,7 @@ class WorldObject(object):
         self._parent = Plug(self, object, parent, 'in')
         self.parent = parent
         self._name = name
+        self.classifier = 'object'
         self._translate = Plug(self, np.ndarray, np.array([0.,0.,0.]))
         self._rotate = Plug(self, np.ndarray, np.array([0.,0.,0.]))
         self._rotateOrder = Plug(self, tuple, (0,1,2)) # xyz rotate order

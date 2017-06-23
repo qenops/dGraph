@@ -41,6 +41,7 @@ class Material(object):
         return cls._materialList[name]
     def __init__(self, name, ambient=(.3,.3,.3), amb_coeff=1, **kwargs):      
         self._name = name
+        self.classifier = 'material'
         #self._ambient = dg.Plug()
         self.setAmbient(ambient)
         self.setAmbientCoefficient(amb_coeff)

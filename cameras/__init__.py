@@ -33,6 +33,7 @@ class Camera(WorldObject):
     '''
     def __init__(self, name, parent):
         super(Camera, self).__init__(name, parent)
+        self.classifier = 'camera'
         self._film = FilmBack(name='%s_film'%name, parent=self, worldDim=(.2, .2), res=(512,512))
         self._film.setTranslate(0,0,-.1)
         self._samples = 1
@@ -103,17 +104,20 @@ class Camera(WorldObject):
         return self._film.raster(self.getScene(), mode)
     def setup(self, width, height):
         ''' just an empty method for compatability with the render stack '''
-        return set(self.getScene())
-    def render(self):
-        #print '%s entering render. %s %s %s'%(self.__class__, self._name, posWidth, clear)
+        toRtn = set()
+        toRtn.add(self.getScene())
+        return toRtn
+    def render(self,resetFBO):
+        #print('%s entering render. %s'%(self.__class__, self._name))
         sceneGraph = self.getScene()
         cameraMatrix = self.worldMatrix                               # get the camera matrix
         filmMatrix = self.filmMatrix
         # get the lights in the scene
-        for obj in sceneGraph:                                          # Draw the renderable objects in the scene
-            if obj.renderable:
-                obj.renderGL(filmMatrix,cameraMatrix)
-        #print '%s leaving render. %s'%(self.__class__, self._name)
+        #print('%s executing render. %s'%(self.__class__, self._name))
+        for objName in sceneGraph.shapes:                # draw the renderable objects in the scene
+            if sceneGraph[objName].renderable:
+                sceneGraph[objName].renderGL(filmMatrix,cameraMatrix)
+        #print('%s leaving render. %s'%(self.__class__, self._name))
         
 class FilmBack(WorldObject):
     ''' A plane connected to a camera for rendering or displaying an image

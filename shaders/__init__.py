@@ -17,10 +17,20 @@ __all__ = ["Warp", "Contrast", "Blur", "Convolution", "Lookup"]
 
 import numpy as np
 import OpenGL.GL as GL
+from OpenGL.GL import *
 from OpenGL.GL import shaders
 import ctypes, math
 import dGraph.textures as dgt
 import dGraph.config as config
+import cv2
+
+def setUniform(shader, name, value):
+    ''' Sets a uniform (not sampler, just like float and stuff) '''
+    location = glGetUniformLocation(shader, name)
+    if location < 0:
+        return
+    if type(value) == int:
+        glProgramUniform1i(shader, location, value)
 
 class Warp(object):
     ''' A warp class that takes an image and alters it in some manner '''
@@ -35,11 +45,11 @@ class Warp(object):
         return cls._warpList[name]
     def __init__(self, name, **kwargs):      
         self._name = name
+        self.classifier = 'shader'
         self._setup = False
-        self._numWarp = 1
-        self._warpList = []     # list of tuples containing (texture, frameBuffer) pair
-        self._texImages = []      # list containing texture images
-        self._texList = []      # list containing all textures
+        self._internalTextureData = {}      # named dict containing internal texture data
+        self._textures = {}                 # named textures for attachment 
+        self._upstreamBuffers = set()
         self.shader = None
         self._vertexShader = '''
 in vec3 position;
@@ -52,16 +62,19 @@ void main() {
 '''
         self._fragmentShader = '''
 in vec2 fragTexCoord;
-uniform sampler2D tex0;
+uniform sampler2D texRGBA;
 // Force location to 0 to ensure its the first output
 layout (location = 0) out vec4 FragColor;
 void main() {
-    FragColor = texture2D( tex0, fragTexCoord );
+    FragColor = texture2D( texRGBA, fragTexCoord );
     //FragColor = vec4(fragTexCoord.x,fragTexCoord.y,1f,1f); 
-    //vec4 col = texture2D( tex0, fragTexCoord );
+    //vec4 col = texture2D( texRGBA, fragTexCoord );
     //FragColor = vec4(col.a, col.a, col.a, col.a);
 }
 '''
+    @property
+    def name(self):     # a read only attribute
+        return self._name
     @property
     def vertexShader(self):
         '''The output of the vertex shader is clip coordinates (not viewport coordinates) - OpenGL still performs the "divide by w" step automatically.'''
@@ -69,129 +82,95 @@ void main() {
     @property
     def fragmentShader(self):
         return '%s%s'%(config.shaderHeader,self._fragmentShader)
-    def pushRenderStack(self, newRenderStack):
-        ''' Push an entire render stack onto our list all at once '''
-        self._stackList.append(newRenderStack)
     def compileShader(self):
         self.shader = shaders.compileProgram(
-            shaders.compileShader(self.vertexShader, GL.GL_VERTEX_SHADER),
-            shaders.compileShader(self.fragmentShader, GL.GL_FRAGMENT_SHADER)
-        )
-    def uniform(self, name, value):
-        ''' Sets up uniform (not sampler, just like float and stuff) '''
-        location = GL.glGetUniformLocation(self.shader, name)
-        if location < 0:
-            return
-        if type(value) == int:
-            GL.glProgramUniform1i(self.shader, location, value)
+            shaders.compileShader(self.vertexShader, GL_VERTEX_SHADER),
+            shaders.compileShader(self.fragmentShader, GL_FRAGMENT_SHADER),
+            )
+    def connectInput(self, textureFunction, samplerName=None, overwrite=False):
+        if samplerName is None:
+            samplerName = '%d'%len(self._textures)
+        if samplerName in self._textures and not overwrite:
+            raise ValueError('Texture with sampler name: %s already attached to shader %s.'%(samplerNname,self.name))
+        self._upstreamBuffers.add(textureFunction.__self__)
+        self._textures[samplerName] = textureFunction       # store the function, so we can call it later to get the texture after it is created
     def setup(self, width, height):
         ''' Setup our geometry and compile our shaders '''
         if self._setup:
             return set()
         self._width = width
         self._height = height
-        self._warpList = []                  # clear textures for resizing
+        #self._warpList = []                  # clear textures for resizing
         if not hasattr(self, 'vertexArray'):
             self.setupGeo()
-        for i in range(self._numWarp):
-            levelCount = self.maxLevelCount # very wasteful ... but how do I know if the [input device] will produce mip maps? I need to call [smt].mipLevelCount but what is [smt]?
-            tex, bufferData, depthMap = dgt.createWarp(self._width,self._height,levelCount=levelCount)
-            fbos, w, h = bufferData 
-            self._warpList.append((tex, fbos, depthMap))            # add to our list of warps
-        for img in self._texImages:
-            self._texList.append(dgt.createTexture(img))         # add to our list of textures
         sceneGraphSet = set()
+        for frameBuffer in self._upstreamBuffers:
+            sceneGraphSet.update(frameBuffer.setup(width, height))
+        for samplerName, textureFunction in self._textures.items():
+            self._textures[samplerName] = textureFunction()     # convert the functions to actual textures, since they exist now
+        #for i in range(self._numWarp):
+        #    levelCount = self.maxLevelCount # very wasteful ... but how do I know if the [input device] will produce mip maps? I need to call [smt].mipLevelCount but what is [smt]?
+        #    tex, bufferData, depthMap = dgt.createWarp(self._width,self._height,levelCount=levelCount)
+        #    fbos, w, h = bufferData 
+        #    self._warpList.append((tex, fbos, depthMap))            # add to our list of warps
+        for samplerName, img in self._internalTextureData.items():
+            self._textures[samplerName] = dgt.createTexture(img)         # add to our list of textures
         #if warpOnly:
         #    for stack in self._stackList:
         #        for node in stack:
         #            if isinstance(node, Warp):
         #                sceneGraphSet.update(node.setup(width, height))
         #else:
-        for stack in self._stackList:
-            for node in stack:
-                sceneGraphSet.update(node.setup(width, height))
-        self._setup = True
+        #for stack in self._stackList:
+        #    for node in stack:
+        #        sceneGraphSet.update(node.setup(width, height))
+        #self._setup = True
         return sceneGraphSet
     def setupGeo(self):
         ''' setup geometry and vbos '''
         if self.shader is None:                                     # make sure our shader is compiled
             self.compileShader()
         self._verts = np.array([1.,1.,0.,  -1.,1.,0.,  1.,-1.,0.,  -1.,-1.,0.,  1.,1.,  0.,1.,  1.,0.,  0.,0.,], dtype=np.float32)        # set up verts and uvs
-        self.vertexArray = GL.glGenVertexArrays(1)                                                          # create our vertex array
-        GL.glBindVertexArray(self.vertexArray)                                                              # bind our vertex array
-        self.vertexBuffer = GL.glGenBuffers(1)                                                              # Generate buffer to hold our vertex data
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vertexBuffer)                                              # Bind our buffer
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, self._verts.nbytes, self._verts, GL.GL_STATIC_DRAW)             # Send the data over to the buffer
-        shader_pos = GL.glGetAttribLocation(self.shader, 'position')
-        shader_uvs = GL.glGetAttribLocation(self.shader, 'texCoord')
-        GL.glEnableVertexAttribArray(shader_pos)                                                            # Add a vertex position attribute
-        GL.glVertexAttribPointer(shader_pos, 3, GL.GL_FLOAT, False, 0, None)                                # Describe the position data layout in the buffer
-        GL.glEnableVertexAttribArray(shader_uvs)                                                            # Add a vertex uv attribute
-        GL.glVertexAttribPointer(shader_uvs, 2, GL.GL_FLOAT, False, 0, ctypes.c_void_p(self._verts[0].nbytes*12))                 # Describe the uv data layout in the buffer
-        GL.glBindVertexArray( 0 )                                                                           # Unbind the VAO first (Important)
-        GL.glDisableVertexAttribArray(shader_pos)                                                           # Disable our vertex attributes
-        GL.glDisableVertexAttribArray(shader_uvs)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
-        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
-    def render(self, width, height, renderStack, parentTextures=[], parentFrameBuffers=[], posWidth=0, clear=True):
-        ''' Render incoming textures' framebuffesr then run our shader on our geometry '''
-        #if width != self._width or height != self._height:
-            #print '%sx%s to %sx%s'%(self._width, self._height, width, height)
-            #self.setup(width, height, True)
-        if self._numWarp > 1 and len(renderStack):
-            raise RuntimeError('%s object should be last item in render stack: %s\nPlease use object render stack instead.'%(self.__class__, renderStack))
-        if self._numWarp < 2:
-            self._stackList = [renderStack]
-        for idx in range(self._numWarp):
-            stack = list(self._stackList[idx])                                      # get a copy of this texture's render stack
-            #stack = self._stackList[idx]
-            tex, fbos, depthMap = self._warpList[idx]                               # get our texture and frameBuffer
-            temp = stack.pop()
-            temp.render(width, height, stack, tex, fbos, posWidth=0, clear=True)                   # Go up the render stack to get our texture
-            #data = GL.glReadPixels(0, 0, width, height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, outputType=None)
-            #data = np.reshape(data,(height,width,3))
-            #cv2.imshow('%s:%s'%(self._name,temp._name),data)
-            #cv2.waitKey()
-        
+        self.vertexArray = glGenVertexArrays(1)                                                          # create our vertex array
+        glBindVertexArray(self.vertexArray)                                                              # bind our vertex array
+        self.vertexBuffer = glGenBuffers(1)                                                              # Generate buffer to hold our vertex data
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertexBuffer)                                              # Bind our buffer
+        glBufferData(GL_ARRAY_BUFFER, self._verts.nbytes, self._verts, GL_STATIC_DRAW)             # Send the data over to the buffer
+        shader_pos = glGetAttribLocation(self.shader, 'position')
+        shader_uvs = glGetAttribLocation(self.shader, 'texCoord')
+        glEnableVertexAttribArray(shader_pos)                                                            # Add a vertex position attribute
+        glVertexAttribPointer(shader_pos, 3, GL_FLOAT, False, 0, None)                                # Describe the position data layout in the buffer
+        glEnableVertexAttribArray(shader_uvs)                                                            # Add a vertex uv attribute
+        glVertexAttribPointer(shader_uvs, 2, GL_FLOAT, False, 0, ctypes.c_void_p(self._verts[0].nbytes*12))                 # Describe the uv data layout in the buffer
+        glBindVertexArray( 0 )                                                                           # Unbind the VAO first (Important)
+        glDisableVertexAttribArray(shader_pos)                                                           # Disable our vertex attributes
+        glDisableVertexAttribArray(shader_uvs)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
+    def render(self,resetFBO):
+        ''' Render incoming textures' framebuffers then run our shader on our geometry '''
+        #print('%s entering render. %s'%(self.__class__, self._name))
+        for frameBuffer in self._upstreamBuffers:
+            frameBuffer.render(resetFBO)
         if self.shader is None:                                                 # make sure our shader is compiled
             self.compileShader()
-        GL.glUseProgram(self.shader)
-        for idx in range(self._numWarp):                                        # attach our warp textures first
-            tex, frameBuffer, depthMap = self._warpList[idx]
-            dgt.attachTexture(tex, self.shader, idx)
-        for i, tex in enumerate(self._texList):                                 # then attach our normal textures
-            idx = i + self._numWarp
-            dgt.attachTexture(tex, self.shader, idx)
-        GL.glBindVertexArray(self.vertexArray)                                      # bind our vertex array
-
-        self.beforeRender()
-
-        # for all mip levels
-        levelRes = np.array([width, height],int)
-        for level in range(self.mipLevelCount):
-            if level > 0:
-                # bind previous outputs as inputs
-                for i in range(self._numWarp):
-                    dgt.attachTextureNamed(parentTextures, self.shader, self._numWarp + len(self._texList) + i, 'tex%dTexture2DFramebufferTexture2D' % i)
-                    break
-
-            self.uniform("resolution", levelRes)
-            self.uniform("mipLevelIndex", level)
-
-            GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, (parentFrameBuffers[level] if len(parentFrameBuffers) > 0 else 0))              # Disable our frameBuffer so we can render to screen
-            if clear:
-                GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-
-            GL.glViewport(posWidth, 0, levelRes[0], levelRes[1])                               # set the viewport to the portion we are drawing
-            GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
-            levelRes = np.maximum(levelRes / 2, 1).astype(int)
-        GL.glUseProgram(0)
-        #print '%s leaving render. %s'%(self.__class__, self._name)
-
-    def beforeRender(self):
-        # Prepare uniforms and stuff
-        pass
-
+        glUseProgram(self.shader)
+        for idx, (samplerName, texture) in enumerate(self._textures.items()):
+            '''
+            data = dgt.readTexture(texture, 0)
+            cv2.imshow('%s:%s:%s'%(self._name,samplerName,texture),data)
+            cv2.waitKey()
+            '''
+            #print('%s attaching texture %s to sampler %s on index %s'%(self._name, texture, samplerName, idx))
+            dgt.attachTextureNamed(texture, self.shader, idx, samplerName)
+        glBindVertexArray(self.vertexArray)                                      # bind our vertex array
+        #print('%s executing render. %s'%(self.__class__, self._name))
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
+        glBindVertexArray(0)
+        glUseProgram(0)
+        #print('%s leaving render. %s'%(self.__class__, self._name))
+        # should probably return the set of upstream nodes (and thiers) and add ourselves to avoid duplicate rendering in a single frame
+        # we could then have a flag for frameRendered or frameComplete that gets checked at beginning of method and reset with new frame
     @property
     def mipLevelCount(self):
         return 1
@@ -203,7 +182,7 @@ void main() {
 class Contrast(Warp):
     ''' A shader that will decrease or increase the contrast of an image '''
     def __init__(self, name, **kwargs):
-        super(Blur, self).__init__(name, **kwargs)
+        super().__init__(name, **kwargs)
         self.median = 127
         self.factor = 1
         self._fragmentShader = '''
@@ -213,31 +192,32 @@ Not implimented yet
 class Blur(Warp):
     ''' A specialized 9x9 kernel convolution '''
     def __init__(self, name, **kwargs):
-        super(Blur, self).__init__(name, **kwargs)
+        super().__init__(name, **kwargs)
         # speed up by calculating texCoord in vertex shader and passing them down
         self._fragmentShader = '''
 in vec2 fragTexCoord;
-uniform sampler2D tex0;
+uniform sampler2D texRGBA;
 // Force location to 0 to ensure its the first output
 layout (location = 0) out vec4 FragColor;
 void main() {
 	float sStep = 1.0f/512.0f;
 	float tStep = 1.0f/512.0f;
-    vec4 myColor = texture2D(tex0, fragTexCoord + vec2(-sStep, -tStep))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(-sStep, 0))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(-sStep, tStep))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, -tStep))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, 0))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(0, tStep))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, -tStep))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, 0))/9.0f;
-	myColor = myColor + texture2D(tex0, fragTexCoord + vec2(sStep, tStep))/9.0f;
+    vec4 myColor = texture2D(texRGBA, fragTexCoord + vec2(-sStep, -tStep))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(-sStep, 0))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(-sStep, tStep))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(0, -tStep))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(0, 0))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(0, tStep))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(sStep, -tStep))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(sStep, 0))/9.0f;
+	myColor = myColor + texture2D(texRGBA, fragTexCoord + vec2(sStep, tStep))/9.0f;
 	FragColor = myColor;
 }
 '''
+
 class Convolution(Warp):
     def __init__(self, name, **kwargs):
-        super(Convolution, self).__init__(name, **kwargs)
+        super().__init__(name, **kwargs)
         self.kernel = np.matrix([[1.]], dtype=np.float32)
     @property
     def kernel(self):
@@ -252,7 +232,7 @@ class Convolution(Warp):
         tStep = 1./self._height
         code = []
         code.append('in vec2 fragTexCoord;\n')
-        code.append('uniform sampler2D tex0;\n')
+        code.append('uniform sampler2D texRGBA; // texRGBA\n')
         code.append('// Force location to 0 to ensure its the first output\n')
         code.append('layout (location = 0) out vec4 FragColor;\n')
         code.append('void main() {\n')
@@ -264,7 +244,7 @@ class Convolution(Warp):
             if it[0] != 0.:
                 s = sStep*(it.multi_index[1]-shape[1]/2.)
                 t = tStep*(it.multi_index[0]-shape[0]/2.)
-                code.append('    FragColor = FragColor + texture2D(tex0, fragTexCoord + vec2(%s, %s))*%sf;\n'%(s, t, it[0]))
+                code.append('    FragColor = FragColor + texture2D(texRGBA, fragTexCoord + vec2(%s, %s))*%sf;\n'%(s, t, it[0]))
             it.iternext()
         code.append('}')
         return '%s%s'%(config.shaderHeader,''.join(code))
@@ -272,53 +252,57 @@ class Convolution(Warp):
 class Over(Warp):
     ''' A compisiting shader implimentation of the over function '''
     def __init__(self, name, **kwargs):
-        super(Over, self).__init__(name, **kwargs)
-        self._numWarp = 2
-        for i in range(self._numWarp):
-            self._stackList.append([])
+        super().__init__(name, **kwargs)
         self._fragmentShader = '''
 in vec2 fragTexCoord;
-uniform sampler2D tex0;  // over
-uniform sampler2D tex1;  // under
+uniform sampler2D texOVER_RGBA;  // texOVER_RGBA
+uniform sampler2D texUNDER_RGBA; // texUNDER_RGBA
+
 // Force location to 0 to ensure its the first output
 layout (location = 0) out vec4 FragColor;
 void main() {
-    vec4 over = texture2D( tex0, fragTexCoord );
+    vec4 over = texture2D( texOVER_RGBA, fragTexCoord );
     if (over.a > 0){
         over = vec4(over.rgb/over.a,over.a);
     }
-    vec4 under = texture2D( tex1, fragTexCoord );
+    vec4 under = texture2D( texUNDER_RGBA, fragTexCoord );
     FragColor = mix(under, over, over.a);
 }
 '''
-    @property
-    def overStack(self):
-        return list(self._stackList[0])
-    @property
-    def underStack(self):
-        return list(self._stackList[1])
-    def overStackAppend(self, value):
-        self._stackList[0].append(value)
-    def underStackAppend(self, value):
-        self._stackList[1].append(value)
 
 class Lookup(Warp):
     ''' A lookup table implementation where the lookup table is computed '''
     def __init__(self, name, lutFile, **kwargs):
-        super(Lookup, self).__init__(name, **kwargs)
-        self._numWarp = 1
+        super().__init__(name, **kwargs)
         self._lutFile = lutFile
-        self._texImages.append(dgt.loadImage(self._lutFile))   # load our LUT file
+        self._internalTextureData['texLUT'] = dgt.loadImage(self._lutFile)   # load our LUT file
         self._fragmentShader = '''
 in vec2 fragTexCoord;
-uniform sampler2D tex0;  // texCol
-uniform sampler2D tex1;  // texLUT
+uniform sampler2D texRGBA; // texRGBA
+uniform sampler2D texLUT;  // texLUT
 
 layout (location = 0) out vec4 FragColor;
 
 void main() {
-    vec2 uv = texture2D(tex1, fragTexCoord).rg;
-    FragColor = texture2D(tex0, uv);
+    vec2 uv = texture2D(texLUT, fragTexCoord).rg;
+    FragColor = texture2D(texRGBA, uv);
+};
+'''
+
+class Image(Warp):
+    ''' A shader displaying the indicated image '''
+    def __init__(self, name, imageFile, **kwargs):
+        super().__init__(name, **kwargs)
+        self._imageFile = imageFile
+        self._internalTextureData['texRGBA'] = dgt.loadImage(self._imageFile)   # load our LUT file
+        self._fragmentShader = '''
+in vec2 fragTexCoord;
+uniform sampler2D texRGBA; // texRGBA
+
+layout (location = 0) out vec4 FragColor;
+
+void main() {
+    FragColor = texture2D( texRGBA, fragTexCoord );
 };
 '''
 
@@ -334,6 +318,28 @@ class GaussMIPMap(Warp):
     @property
     def mipLevelCount(self):
         return self.maxLevelCount
+    def render(self):
+        # need to add all the stuff the parent method does - I don't think we can call super, or maybe we can, since it just does level 1, then we do the rest?
+        # for all mip levels
+        levelRes = np.array([width, height],int)
+        for level in range(self.mipLevelCount):
+            if level > 0:
+                # bind previous outputs as inputs
+                for i in range(self._numWarp):
+                    dgt.attachTextureNamed(parentTextures, self.shader, len(self._textures) + i, 'tex%dTexture2DFramebufferTexture2D' % i)
+                    break
+
+            setUniform(self.shader, "resolution", levelRes)
+            setUniform(self.shader, "mipLevelIndex", level)
+
+            glBindFramebuffer(GL_FRAMEBUFFER, (parentFrameBuffers[level] if len(parentFrameBuffers) > 0 else 0))              # Disable our frameBuffer so we can render to screen
+            if clear:
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+            glViewport(posWidth, 0, levelRes[0], levelRes[1])                               # set the viewport to the portion we are drawing
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)                                 # draw a triangle strip
+            levelRes = np.maximum(levelRes / 2, 1).astype(int)
+        glUseProgram(0)
     
 
 class DepthOfField(Warp):

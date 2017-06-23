@@ -30,9 +30,9 @@ import time
 
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 
-def loadScene(renderGraph,file=None):
+def loadScene(renderGraph):
     '''Load or create our sceneGraph'''
-    scene = dg.SceneGraph(file)
+    scene = dg.SceneGraph('Test0_SG')
     cam = scene.add(dgc.Camera('cam', scene))
     cam.setResolution((renderGraph.width, renderGraph.height))
     cam.setTranslate(0.,0.,0.)
@@ -45,12 +45,11 @@ def loadScene(renderGraph,file=None):
 
     #material1 = scene.add(dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1))
     material1 = scene.add(dgm.Lambert('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1))
-    for obj in scene.values():
-        if isinstance(obj, dgs.Shape):
-            obj.setMaterial(material1)
+    for obj in scene.shapes:
+        scene[obj].setMaterial(material1)
 
     renderGraph.frameBuffer.connectInput(cam)
-    scene.renderGraph = renderGraph
+    scene.add(renderGraph)
     return scene
 
 def animateScene(scene, frame):
@@ -58,9 +57,8 @@ def animateScene(scene, frame):
     # infinity rotate:
     y = 1
     x = math.cos(frame*math.pi/60)
-    for obj in scene.values():
-        if isinstance(obj, dgs.Shape):
-            obj.rotate += np.array((x,y,0.))
+    for obj in scene.shapes:
+        scene[obj].rotate += np.array((x,y,0.))
 
 def addInput(scene):
     dgui.add_key_callback(arrowKey, dgui.KEY_RIGHT, scene=scene, direction=3)
@@ -85,11 +83,11 @@ def arrowKey(window,scene,direction):
         print(scene['teapot'].rotate)
 
 def setup():
-    renderGraph = dgr.RenderGraph()
-    renderGraph.displays.append(dgui.Display(resolution=(800,600)))
+    renderGraph = dgr.RenderGraph('Test0_RG')
+    display = renderGraph.add(dgui.Display('Fake Display',resolution=(800,600)))
     dgui.init()
     offset = (0,0)
-    mainWindow = renderGraph.addWindow(dgui.open_window('Scene Graph Test', offset[0], offset[1], renderGraph.displays[0].width, renderGraph.displays[0].height))
+    mainWindow = renderGraph.add(dgui.open_window('Scene Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:
         dgui.terminate()
         exit(1)
@@ -122,7 +120,9 @@ def runLoop(scene, mainWindow):
     dgui.terminate()
     elapsed = end-start
     computePct = (1-totalSleep/elapsed)*100
-    print('Slept %.4f seconds of a total %.4f seconds.\nRendering %.2f%% of the time.'%(totalSleep,elapsed,computePct))
+    renderTime = elapsed-totalSleep
+    frameTime = renderTime/frame*1000
+    print('Average frame took %.4f ms to render.\nRendered %.4f seconds of a total %.4f seconds.\nRendering %.2f%% of the time.'%(frameTime,renderTime,elapsed,computePct))
     exit(0)
 
 if __name__ == '__main__':

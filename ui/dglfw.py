@@ -82,6 +82,8 @@ def open_window(title, posX, posY, width, height, share=None, key_callback=key_c
     window = glfw.create_window(width, height, title, None, share)
     if not window:
         return None
+    window.name = title             # for compliance with dGraph
+    window.classifier = 'window'    # for compliance with dGraph
     glfw.make_context_current(window)
     glfw.swap_interval(0)  # doesn't seem to be helping fix vsync - actually turning it to 0 does seem to help
     glfw.set_window_pos(window, posX, posY)

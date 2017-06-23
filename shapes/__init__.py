@@ -14,7 +14,7 @@ __author__ = ('David Dunn')
 __version__ = '1.6'
 __all__ = ["Shape", "PolySurface"]
 
-from dGraph import *
+import dGraph as dg
 import dGraph.materials as dgm
 from dGraph.dio import obj
 from math import sin, cos, pi
@@ -24,7 +24,7 @@ from numpy import dot, cross, matlib
 import OpenGL.GL as GL
 import ctypes
 
-class Shape(WorldObject):
+class Shape(dg.WorldObject):
     ''' Any world object that has a renderable surface
         Material (connection to a material class object for illumination information)
         Intersection (given a Ray will return all the intersection points and distances)
@@ -35,7 +35,7 @@ class Shape(WorldObject):
     '''
     def __init__(self, name, parent):
         super(Shape, self).__init__(name, parent)
-        #self.setMaterial(Material.newMaterial('default'))
+        self.classifier = 'shape'
         self.setMaterial(dgm.Material('default'))
         self.renderable = True
     @property
@@ -202,6 +202,7 @@ class PolySurface(Shape):
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
         self._VBOdone = True
     def renderGL(self, filmMatrix=None, cameraMatrix=None):
+        #print('%s entering render. %s'%(self.__class__, self._name))
         GL.glUseProgram(self._material.shader)
         # multiply the world transform to the camera matrix
         cameraMatrix = matlib.identity(4) if cameraMatrix is None else cameraMatrix
@@ -220,6 +221,7 @@ class PolySurface(Shape):
         GL.glDrawElements(GL.GL_TRIANGLES,self.numTris,GL.GL_UNSIGNED_INT, None)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
+        #print('%s leaving render. %s'%(self.__class__, self._name))
     @staticmethod
     def calcTriNorm(a,b,c, na=None, nb=None, nc=None):
         normal = cross((b - a),(c - a))

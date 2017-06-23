@@ -10,14 +10,13 @@ www.qenops.com
 __author__ = ('David Dunn')
 __version__ = '1.0'
 
-import numpy as np
 import OpenGL.GL as GL
-from OpenGL.GL import shaders
 from OpenGL.GL import *
-import cv2
+import numpy as np
 import os
 import dGraph as dg
 import dGraph.util.imageManip as dgim
+import cv2
 
 # Get numchannels from format:
 glFormatChannels={GL_STENCIL_INDEX:1, GL_DEPTH_COMPONENT:1, GL_DEPTH_STENCIL:1, GL_RED:1, GL_GREEN:1, GL_BLUE:1, GL_RGB:3, GL_BGR:3, GL_RGBA:4, GL_BGRA:4}
@@ -78,8 +77,9 @@ def prepareImage(image):
         channels = 4
     img = np.flipud(img)
     format = glChannelsFormat[channels]
-    type = glNumpyToType[img.dtype.type]
+    gltype = glNumpyToType[img.dtype.type]
     # This is ugly (using exec) but I can't figure another way to do it
+    #   dd - why didn't I just use setattr() ???
     formatBase = str(format).split()[0]
     mod = ''
     if 'float' in img.dtype.name:
@@ -92,30 +92,16 @@ def prepareImage(image):
     namespace = {}
     exec('internalSizedFormat = %s'% tempISF, None, namespace) 
     internalSizedFormat = namespace['internalSizedFormat']
-    return img, iy, ix, channels, format, type, internalSizedFormat
+    return img, iy, ix, channels, format, gltype, internalSizedFormat
 
 def createTexture(image, mipLevels=1,wrap=GL_REPEAT,filterMag=GL_LINEAR,filterMin=GL_LINEAR_MIPMAP_LINEAR):
     ''' allocate space on the gpu and transfer the data there '''
-    img, height, width, channels, format, type, isf = prepareImage(image)
-    #print '%s, %s, %s, %s, %s, %s'%(height, width, channels, format, type, isf)
-    #texture = glGenTextures(1)
-    #glBindTexture(GL_TEXTURE_2D, texture)
-    #glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, type, img)
-    #glTexStorage2D(GL_TEXTURE_2D, mipLevels, isf, width, height)
-    
-    #glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
-
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap)
-    #if mipLevels > 1:
-    #    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipfilter)
-    #else:
-    #    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
-    #glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
+    img, height, width, channels, format, gltype, isf = prepareImage(image)
+    #print('%s, %s, %s, %s, %s, %s'%(height, width, channels, format, gltype, isf))
     if filterMin == GL_LINEAR_MIPMAP_LINEAR and mipLevels == 1: filterMin = filterMag 
     texture = createEmptyTexture(**locals())
     glBindTexture(GL_TEXTURE_2D, texture)
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, gltype, img)
     # we should do some verification if the texture is as it should be
     #glGetTexLevelParameteriv(GL_TEXTURE_2D,0,GL_TEXTURE_INTERNAL_FORMAT)
     #int(GL_RGBA)
@@ -125,14 +111,14 @@ def createTexture(image, mipLevels=1,wrap=GL_REPEAT,filterMag=GL_LINEAR,filterMi
     glBindTexture(GL_TEXTURE_2D, 0)
     return texture
 
-def createEmptyTexture(width, height, mipLevels=1, wrap=GL_MIRRORED_REPEAT, filterMag=GL_LINEAR, filterMin=GL_LINEAR_MIPMAP_LINEAR, type=GL_UNSIGNED_BYTE, isf=GL_RGBA8,**kwargs):
+def createEmptyTexture(width, height, mipLevels=1, wrap=GL_MIRRORED_REPEAT, filterMag=GL_LINEAR, filterMin=GL_LINEAR_MIPMAP_LINEAR, gltype=GL_UNSIGNED_BYTE, isf=GL_RGBA8,**kwargs):
     ''' allocate space on the gpu for a texture, but do not fill it with anything '''
     texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
     glTexStorage2D(GL_TEXTURE_2D, mipLevels, isf, width, height)
     #levelRes = np.array([width, height], int)
     #for level in range(mipLevels):
-        #glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, type, None)   # Allocate memory
+        #glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, gltype, None)   # Allocate memory
         #levelRes = np.maximum(levelRes / 2, 1).astype(int)
     # set the parameters for filtering
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
@@ -144,30 +130,24 @@ def createEmptyTexture(width, height, mipLevels=1, wrap=GL_MIRRORED_REPEAT, filt
 
 def updateTexture(texture, image):
     ''' load new data into an existing texture '''
-    img, height, width, channels, format, type, isf = prepareImage(image)
+    img, height, width, channels, format, gltype, isf = prepareImage(image)
     glBindTexture(GL_TEXTURE_2D, texture)
     # we should do some verification if the texture is as it should be
     #width = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH)
     #height = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT)
     #texFormat = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT)
     #texType = glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_RED_TYPE)
-    #if ix == width and iy == height and format == texFormat and type == texType:
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, type, img)
+    #if ix == width and iy == height and format == texFormat and gltype == texType:
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, gltype, img)
     #else:
     #   pass
     glBindTexture(GL_TEXTURE_2D, 0)
 
-def createDepthRenderBuffer(width, height):
-    depthBuffer = glGenRenderbuffers(1)
-    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer)
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height)
-    glBindRenderbuffer(GL_RENDERBUFFER, 0)
-    return depthBuffer
-
+# Thought about moving these two to shader module, but materials module will want them as well
 def attachTexture(texture, shader, index):
     ''' attach a texture to a shader sampler2d with defalut name "tex#" '''
     attachTextureNamed(texture, shader, index, 'tex%s'%index)
-
+# Thought about moving these two to shader module, but materials module will want them as well
 def attachTextureNamed(texture, shader, index, samplerName):
     ''' attach a texture to a shader sampler2d '''
     GL.glActiveTexture(getattr(GL, 'GL_TEXTURE%s'%index))       # make texture register idx active
@@ -175,13 +155,13 @@ def attachTextureNamed(texture, shader, index, samplerName):
     texLoc = GL.glGetUniformLocation(shader, samplerName)       # get location of our texture
     GL.glUniform1i(texLoc, index)                               # connect location to register idx
 
-def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filterMin=GL_LINEAR_MIPMAP_LINEAR,filterMag=GL_LINEAR, levelCount=1):
+def createWarp(width, height, gltype=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filterMin=GL_LINEAR_MIPMAP_LINEAR,filterMag=GL_LINEAR, levelCount=1):
     ''' DEPRECATED - use createEmptyTexture for color and depth and create fbos yourself'''
     texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
     levelRes = np.array([width, height], int)
     for level in range(levelCount):
-        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, type, None)   # Allocate memory
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, levelRes[0], levelRes[1], 0, GL_RGBA, gltype, None)   # Allocate memory
         levelRes = np.maximum(levelRes / 2, 1).astype(int)
 
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)
@@ -218,9 +198,16 @@ def createWarp(width, height, type=GL_UNSIGNED_BYTE,wrap=GL_MIRRORED_REPEAT,filt
     
     return texture, (fbos,width,height), depthMap
 
-def readFramebuffer(x, y, width, height, format, gltype=GL.GL_UNSIGNED_BYTE):
+def readTexture(texture, level):
     '''Get pixel values from framebuffer to numpy array'''
-    stringArry = GL.glReadPixels(x,y,width,height,format,gltype)        # read the buffer
+    glBindTexture(GL_TEXTURE_2D, texture)
+    width = glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_WIDTH)
+    height = glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_HEIGHT)
+    #format = glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_INTERNAL_FORMAT)
+    #gltype = glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_RED_TYPE)
+    format = GL_RGBA
+    gltype = GL_UNSIGNED_BYTE
+    stringArry = glGetTexImage(GL_TEXTURE_2D,level,format,gltype)     # read the texture    
     arry = np.fromstring(stringArry,glTypeToNumpy[gltype])              # convert back to numbers
     arry = np.reshape(arry,(height,width,glFormatChannels[format]))     # reshape our array to right dimensions
     arry = np.flipud(arry)                                              # openGL and openCV start images at bottom and top respectively, so flip it
@@ -230,6 +217,7 @@ def readFramebuffer(x, y, width, height, format, gltype=GL.GL_UNSIGNED_BYTE):
         temp[:,:,0] = arry[:,:,2]
         temp[:,:,2] = arry[:,:,0]
         arry=temp
+    glBindTexture(GL_TEXTURE_2D, 0)
     return arry
 
 def loadImage(imgFile):
@@ -240,5 +228,5 @@ def loadImage(imgFile):
     elif extension == '.png':
         image = cv2.imread(imgFile, -1)
     else:
-        raise ValueError('File type unknown')
+        raise ValueError('File gltype unknown')
     return image
