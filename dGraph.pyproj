@@ -77,6 +77,7 @@
     <Content Include="render\__pycache__\__init__.cpython-35.pyc" />
     <Content Include="shaders\DepthOfFieldPerceptualFragment.glsl" />
     <Content Include="shaders\GaussMIPTexture2DFragment.glsl" />
+    <Content Include="shaders\GLDepthToLinearFragment.glsl" />
   </ItemGroup>
   <Import Project="$(PtvsTargetsFile)" Condition="Exists($(PtvsTargetsFile))" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" Condition="!Exists($(PtvsTargetsFile))" />

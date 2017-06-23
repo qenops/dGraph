@@ -124,7 +124,7 @@ class RenderGraph(dict):
 
 class FrameBuffer(object):
     ''' An object to manage openGL framebuffers '''
-    def __init__(self, name, onScreen=True, depthIsTexture=False,mipLevels=1):
+    def __init__(self, name, onScreen=True, depthIsTexture=False,mipLevels=1,isf=GL_RGBA8):
         self._name = name
         self.classifier = 'frameBuffer'
         self.onScreen = onScreen
@@ -135,6 +135,7 @@ class FrameBuffer(object):
         self.textures = {}  # 'Name': GLid
         self._setup = False
         self.mipLevels = mipLevels
+        self.isf = isf
     @property
     def name(self):     # a read only attribute
         return self._name
@@ -164,10 +165,10 @@ class FrameBuffer(object):
             return set()
         self.setResolution(width,height)
         if not self.onScreen:
-            rgba = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels)
+            rgba = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels,isf=self.isf)
             self.textures['rgba'] = rgba
             if self.depthIsTexture:
-                depth = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels,isf=GL_DEPTH_COMPONENT)
+                depth = dgt.createEmptyTexture(width,height,mipLevels=self.mipLevels,isf=GL_DEPTH_COMPONENT32)
             else:
                 depth = createDepthRenderBuffer(width,height)
             self.textures['depth'] = depth

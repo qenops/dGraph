@@ -14,6 +14,7 @@ OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
+from OpenGL.GL import *
 import math, os
 import numpy as np
 import sys; sys.path.append('..')
@@ -35,8 +36,8 @@ def loadScene(renderGraph,file=None):
     scene = renderGraph.add(dg.SceneGraph('DoF_Scene', file))
 
     cube = scene.add(dgs.PolySurface('cube', scene, file = '%s/cube.obj'%MODELDIR))
-    cube.setScale(.4,.4,.4)
-    cube.setTranslate(0.,0.,-2.)
+    cube.setScale(1,1,1)
+    cube.setTranslate(0.,0.,-4)
     cube.setRotate(25.,65.,23.)
     
     teapot = scene.add(dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR))
@@ -61,7 +62,7 @@ def loadScene(renderGraph,file=None):
     camera.setTranslate(0.,0.,0.)
     camera.setFOV(50.)
     # Tock
-    camBuffer = renderGraph.add(dgr.FrameBuffer('camera_fbo',onScreen=False))
+    camBuffer = renderGraph.add(dgr.FrameBuffer('camera_fbo',onScreen=False,depthIsTexture=True))
     camBuffer.connectInput(camera)
 
     # Tick
@@ -74,8 +75,25 @@ def loadScene(renderGraph,file=None):
     gaussMipBuffer.connectInput(gaussMip)
 
     # Tick
+    glDepthToLinear = renderGraph.add(dgshdr.GLDepthToLinear('glDepthToLinear'))
+    glDepthToLinear.inputRange[1] = 1 # The depth scaling is not necessary if one assumes the world is properly modeled with units in meters
+    glDepthToLinear.outputRange[1] = 1#0.1
+    glDepthToLinear.projectionMatrix = camera.filmMatrix
+    glDepthToLinear.connectInput(camBuffer.depth, 'glDepthTexture2D')
+
+    # Tock
+    linDepthBuffer = renderGraph.add(dgr.FrameBuffer('linDepth_fbo',onScreen=False,isf=GL_R32F))
+    linDepthBuffer.connectInput(glDepthToLinear)
+
+    # Tick
     dof = renderGraph.add(dgshdr.DepthOfField('depthOfField'))
-    dof.connectInput(gaussMipBuffer.rgba, 'image')
+    renderGraph.focusDistanceLog = 0.1
+    dof.focalPlaneMeters = 10**renderGraph.focusDistanceLog
+    print("Current focal depth = %.3f D / %.2f meters" % (1.0/renderGraph['depthOfField'].focalPlaneMeters, renderGraph['depthOfField'].focalPlaneMeters))
+    dof.pixelSizeMm = pixelDiameter * 1e3
+    dof.apertureMm = 3.0 * 10
+    dof.connectInput(gaussMipBuffer.rgba, 'imageTexture')
+    dof.connectInput(linDepthBuffer.rgba, 'depthTexture')
 
     # Final
     renderGraph.frameBuffer.connectInput(dof)
@@ -92,13 +110,8 @@ def animateScene(renderGraph, frame):
             renderGraph[scene][obj].rotate += np.array((x,y,0.))
     # update focus:
     if renderGraph.focusChanged:
-        display = renderGraph['Fake Display']
-        imageScale = display.width/(renderGraph.width)
-        pixelDiameter = imageScale*display.pixelSize()[0]
-        kernel = im.getPSF(renderGraph.focus, 1.5, aperture=.004, pixelDiameter=pixelDiameter)
-        renderGraph['ftBlur'].kernel = kernel
-        kernel = im.getPSF(renderGraph.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
-        renderGraph['bkBlur'].kernel = kernel
+        renderGraph['depthOfField'].focalPlaneMeters = 10**renderGraph.focusDistanceLog
+        print("Current focal depth = %.3f D / %.2f meters" % (1.0/renderGraph['depthOfField'].focalPlaneMeters, renderGraph['depthOfField'].focalPlaneMeters))
         renderGraph.focusChanged = False
     
 def addInput(renderGraph):
@@ -113,13 +126,11 @@ def arrowKey(window,renderGraph,direction):
     elif direction == 2:    # print "left"
         pass
     elif direction == 1:      # print 'up'
-        renderGraph.focus += .1
+        renderGraph.focusDistanceLog += 0.1
         renderGraph.focusChanged = True
-        print("Current focal depth = %s"%renderGraph.focus)
     else:                   # print "down"
-        renderGraph.focus -= .1
+        renderGraph.focusDistanceLog -= 0.1
         renderGraph.focusChanged = True
-        print("Current focal depth = %s"%renderGraph.focus)
 
 def setup():
     renderGraph = dgr.RenderGraph('Test2_RG')

@@ -24,13 +24,34 @@ import dGraph.textures as dgt
 import dGraph.config as config
 import cv2
 
+
 def setUniform(shader, name, value):
-    ''' Sets a uniform (not sampler, just like float and stuff) '''
-    location = glGetUniformLocation(shader, name)
+    ''' Sets up uniform (not sampler, just like float and stuff) '''
+    location = GL.glGetUniformLocation(shader, name)
     if location < 0:
         return
     if type(value) == int:
-        glProgramUniform1i(shader, location, value)
+        GL.glProgramUniform1i(shader, location, value)
+    elif type(value) == float:
+        GL.glProgramUniform1f(shader, location, value)
+    elif isinstance(value, np.ndarray): #and isinstance(value.dtype, np.floating):
+        value32f = np.ascontiguousarray(value, np.float32)
+        if len(value.shape) == 1:
+            if len(value) == 2:
+                GL.glProgramUniform2fv(shader, location, 1, value32f)
+            elif len(value) == 3:
+                GL.glProgramUniform3fv(shader, location, 1, value32f)
+            elif len(value) == 4:
+                GL.glProgramUniform4fv(shader, location, 1, value32f)
+        elif len(value.shape) == 2:
+            if value.shape[0] == 4 and value.shape[1] == 4:
+                ## This would be better but somehow it expects 4 floats instead of 16
+                #GL.glProgramUniform4fv(shader, location, 1, GL.GL_FALSE, value32f)
+
+                GL.glUseProgram(shader)
+                GL.glUniformMatrix4fv(location, 1, GL.GL_FALSE, value32f)
+                #GL.glUseProgram(0)
+
 
 class Warp(object):
     ''' A warp class that takes an image and alters it in some manner '''
@@ -147,6 +168,11 @@ void main() {
         glDisableVertexAttribArray(shader_uvs)
         glBindBuffer(GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
+
+    def beforeRender(self):
+        # setup params
+        pass
+        
     def render(self,resetFBO,mipLevel=0):
         ''' Render incoming textures' framebuffers then run our shader on our geometry '''
         if mipLevel == 0:
@@ -168,6 +194,8 @@ void main() {
                     
         setUniform(self.shader, "resolution", levelRes)
         setUniform(self.shader, "mipLevelIndex", mipLevel)
+
+        self.beforeRender()
         
         location = np.array([0, 0, 1, 1])
         if not resetFBO is None:
@@ -339,13 +367,34 @@ class GaussMIPMap(Warp):
         return self.maxLevelCount
 
     
-
-        
-    
-
 class DepthOfField(Warp):
     def __init__(self, name, **kwargs):
+        self.focalPlaneMeters = 1
+        self.pixelSizeMm = 0.25
+        self.apertureMm = 3
         super(DepthOfField, self).__init__(name, **kwargs)
     @property
     def fragmentShader(self):       
         return self.loadShaderCode('DepthOfFieldPerceptualFragment.glsl') 
+
+    def beforeRender(self):
+        setUniform(self.shader, 'focalPlaneMeters', float(self.focalPlaneMeters))
+        setUniform(self.shader, 'pixelSizeMm', float(self.pixelSizeMm))
+        setUniform(self.shader, 'apertureMm', float(self.apertureMm))
+
+
+class GLDepthToLinear(Warp):
+    ''' Converts th 1/z-ish depth buffer to something that can actually be interpreted as Euclidean distance...'''
+    def __init__(self, name, **kwargs):
+        self.projectionMatrix = np.zeros([4,4],float)
+        self.inputRange = np.array([0, 1], np.float)
+        self.outputRange = np.array([0, 1], np.float)
+        super(GLDepthToLinear, self).__init__(name, **kwargs)
+    @property
+    def fragmentShader(self):       
+        return self.loadShaderCode('GLDepthToLinearFragment.glsl') 
+
+    def beforeRender(self):
+        setUniform(self.shader, 'projectionMatrix', self.projectionMatrix.astype(float))
+        setUniform(self.shader, 'inputRange', self.inputRange.astype(float))
+        setUniform(self.shader, 'outputRange', self.outputRange.astype(float))

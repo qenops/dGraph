@@ -4,11 +4,10 @@ precision highp float;
 #endif
 in vec2 fragTexCoord;
 
-uniform sampler2D image;
+uniform sampler2D imageTexture;
+uniform sampler2D depthTexture;
 
-uniform float minDepthMeters;	// assumed in diopters
-uniform float maxDepthMeters;	// assumed in diopters
-uniform float focalPlaneMeters; // assumed in diopters
+uniform float focalPlaneMeters; // assumed in meters
 uniform float pixelSizeMm;		// assumed in mm, def = 0.25
 uniform float apertureMm;		// aperture, assumed in mm, Human pupil is between 1.5 and 8 mm
 
@@ -113,5 +112,15 @@ float getCircleOfConfusionRadius(float focusDistanceM, float targetDistanceM) {
 
 
 void main() {
-	FragColor = doubleBicubicTextureFullPass(image, fragTexCoord, 4);
+	//FragColor = doubleBicubicTextureFullPass(imageTexture, fragTexCoord, 0); return;
+
+	float depthM = texelFetch(depthTexture, ivec2(gl_FragCoord.xy), 0).x;
+	//depthM = textureLod(depthTexture, fragTexCoord, 0).x;
+
+	float cocRadiusPx = getCircleOfConfusionRadius(focalPlaneMeters, depthM);
+	float gaussLevel = domainRadiusToBicubicGaussMIPLevel(cocRadiusPx);
+	
+	vec4 blurredColor = doubleBicubicTextureFullPass(imageTexture, fragTexCoord, gaussLevel);
+
+	FragColor = blurredColor;
 }
