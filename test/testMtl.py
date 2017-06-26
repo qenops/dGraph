@@ -1,23 +1,23 @@
 #!/usr/bin/python
-'''Test for an openGL based stereo renderer - testing render stack features (compositing via over shader and blurring via convolution shader)
+'''Test for OBJ with material loader and shader
 
-David Dunn
-Feb 2017 - converted to test suite - failing depth test for render to framebuffers
-
-www.qenops.com
+Petr Kellnhofer
+June 2017
 
 '''
-__author__ = ('David Dunn')
+__author__ = ('Petr Kellnhofer')
 __version__ = '1.0'
 
 import OpenGL
-OpenGL.ERROR_CHECKING = False      # Uncomment for 2x speed up
+OpenGL.ERROR_CHECKING = True      # Uncomment for 2x speed up
 OpenGL.ERROR_LOGGING = False       # Uncomment for speed up
 #OpenGL.FULL_LOGGING = True         # Uncomment for verbose logging
 #OpenGL.ERROR_ON_COPY = True        # Comment for release
 import OpenGL.GL as GL
+from OpenGL.GL import *
 import math, os
 import numpy as np
+import sys; sys.path.append('..')
 import dGraph as dg
 import dGraph.ui as dgui
 import dGraph.cameras as dgc
@@ -31,65 +31,36 @@ import time
 
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 
-def loadScene(renderGraph):                
+def loadScene(renderGraph,file=None):                
     '''Load or create our sceneGraph'''
-    
-    backScene = renderGraph.add(dg.SceneGraph('Test2_backSG'))
-    bCam = backScene.add(dgc.Camera('back', backScene))
-    bCam.setResolution((renderGraph.width, renderGraph.height))
-    bCam.setTranslate(0.,0.,0.)
-    bCam.setFOV(50.)
-    cube = backScene.add(dgs.PolySurface('cube', backScene, file = '%s/cube.obj'%MODELDIR))
-    cube.setScale(.4,.4,.4)
+    scene = renderGraph.add(dg.SceneGraph('DoF_Scene', file))
+
+    # This guy has mtl and textures
+    cube = scene.add(dgs.PolySurface('cube', scene, file = '%s/TexturedCube.obj'%MODELDIR))
+    cube.setScale(.2,.2,.2)
     cube.setTranslate(0.,0.,-2.)
-    cube.setRotate(25.,65.,23.)
-    
-    frontScene = renderGraph.add(dg.SceneGraph('Test2_frontSG'))
-    fCam = frontScene.add(dgc.Camera('front', frontScene))
-    fCam.setResolution((renderGraph.width, renderGraph.height))
-    fCam.translate.connect(bCam.translate)
-    fCam.rotate.connect(bCam.rotate)
-    fCam.setFOV(50.)
-    teapot = frontScene.add(dgs.PolySurface('teapot', frontScene, file = '%s/teapot.obj'%MODELDIR))
+    cube.setRotate(25.,25.+0*90,23.)
+
+    # This will use default material
+    teapot = scene.add(dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR))
     teapot.setScale(.4,.4,.4)
     teapot.setTranslate(.5,-.2,-1.5)
     teapot.setRotate(5.,0.,0.)
+    teapot.material.diffuseColor = np.array([1.0, 1.0, 0.8]) * 0.5
+    teapot.material.specularColor = np.array([1.0, 0.8, 0.7]) * 0.5
+    teapot.material.glossiness = 20
     
-    material1 = scene.add(dgm.Material('material1'))
-    material1.diffuseColor *= 0.4
-    for sceneName in renderGraph.scenes:
-        for obj in renderGraph[sceneName].shapes:
-            renderGraph[sceneName][obj].setMaterial(material1)
+
+    # Tick
+    camera = scene.add(dgc.Camera('scene', scene))
+    camera.setResolution((renderGraph.width, renderGraph.height))
+    camera.setTranslate(0.,0.,0.)
+    camera.setFOV(50.)
     
-    ftBuffer = renderGraph.add(dgr.FrameBuffer('ftFB',onScreen=False))
-    ftBuffer.connectInput(fCam)
-    bkBuffer = renderGraph.add(dgr.FrameBuffer('bkFB',onScreen=False))
-    bkBuffer.connectInput(bCam)
+    # Final
+    renderGraph.frameBuffer.connectInput(camera)
 
-    renderGraph.focus = 2.  # should this be property of camera?
-    renderGraph.focusChanged = False
-    display = renderGraph['Fake Display']
-    imageScale = display.width/(renderGraph.width)
-    pixelDiameter = imageScale*display.pixelSize()[0]
-    kernel = im.getPSF(renderGraph.focus, 1.5, aperture=.004, pixelDiameter=pixelDiameter)
-    ftBlur = renderGraph.add(dgshdr.Convolution('ftBlur'))
-    ftBlur.kernel = kernel
-    ftBlur.connectInput(ftBuffer.rgba, 'texRGBA')
-    bkBlur = renderGraph.add(dgshdr.Convolution('bkBlur'))
-    kernel = im.getPSF(renderGraph.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
-    bkBlur.kernel = kernel
-    bkBlur.connectInput(bkBuffer.rgba, 'texRGBA')
 
-    ftBlurBuffer = renderGraph.add(dgr.FrameBuffer('ftBlurFB',onScreen=False))
-    ftBlurBuffer.connectInput(ftBlur)
-    bkBlurBuffer = renderGraph.add(dgr.FrameBuffer('bkBlurFB',onScreen=False))
-    bkBlurBuffer.connectInput(bkBlur)
-
-    over = renderGraph.add(dgshdr.Over('over'))
-    over.connectInput(ftBlurBuffer.rgba, 'texOVER_RGBA')
-    over.connectInput(bkBlurBuffer.rgba, 'texUNDER_RGBA')
-    renderGraph.frameBuffer.connectInput(over)
-    
     return True                                                         # Initialization Successful
 
 def animateScene(renderGraph, frame):
@@ -100,15 +71,6 @@ def animateScene(renderGraph, frame):
         for obj in renderGraph[scene].shapes:
             renderGraph[scene][obj].rotate += np.array((x,y,0.))
     # update focus:
-    if renderGraph.focusChanged:
-        display = renderGraph['Fake Display']
-        imageScale = display.width/(renderGraph.width)
-        pixelDiameter = imageScale*display.pixelSize()[0]
-        kernel = im.getPSF(renderGraph.focus, 1.5, aperture=.004, pixelDiameter=pixelDiameter)
-        renderGraph['ftBlur'].kernel = kernel
-        kernel = im.getPSF(renderGraph.focus, 2., aperture=.004, pixelDiameter=pixelDiameter)
-        renderGraph['bkBlur'].kernel = kernel
-        renderGraph.focusChanged = False
     
 def addInput(renderGraph):
     dgui.add_key_callback(arrowKey, dgui.KEY_RIGHT, renderGraph=renderGraph, direction=3)
@@ -122,19 +84,15 @@ def arrowKey(window,renderGraph,direction):
     elif direction == 2:    # print "left"
         pass
     elif direction == 1:      # print 'up'
-        renderGraph.focus += .1
-        renderGraph.focusChanged = True
-        print("Current focal depth = %s"%renderGraph.focus)
+        pass
     else:                   # print "down"
-        renderGraph.focus -= .1
-        renderGraph.focusChanged = True
-        print("Current focal depth = %s"%renderGraph.focus)
+        pass
 
 def setup():
     renderGraph = dgr.RenderGraph('Test2_RG')
     display = renderGraph.add(dgui.Display('Fake Display',resolution=(1920,1200),size=(.518,.324)))
     dgui.init()
-    offset = (0,0)
+    offset = (-1920,0)
     mainWindow = renderGraph.add(dgui.open_window('Render Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:
         dgui.terminate()
@@ -178,4 +136,3 @@ if __name__ == '__main__':
     renderGraph, windows = setup()
     addInput(renderGraph)
     runLoop(renderGraph, windows[0])
-

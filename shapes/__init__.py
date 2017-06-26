@@ -17,11 +17,13 @@ __all__ = ["Shape", "PolySurface"]
 import dGraph as dg
 import dGraph.materials as dgm
 from dGraph.dio import obj
+import dGraph.config as config
 from math import sin, cos, pi
 import numpy as np
 from numpy.linalg import norm
 from numpy import dot, cross, matlib
 import OpenGL.GL as GL
+from OpenGL.GL import shaders
 import ctypes
 
 class Shape(dg.WorldObject):
@@ -36,17 +38,16 @@ class Shape(dg.WorldObject):
     def __init__(self, name, parent):
         super(Shape, self).__init__(name, parent)
         self.classifier = 'shape'
-        self.setMaterial(dgm.Material('default'))
         self.renderable = True
+
     @property
     def material(self):
-        return self._material
+        ''' Deprecated '''
+        return self._materials[0]
     def setMaterial(self, material):
-        self._material = material
-    def intersection(self, ray):
-        ''' an abstract method for implimentation in subclasses'''
-        raise NotImplementedError("Please Implement this method")
-        return None
+        ''' Deprecated '''
+        self._materials[0] = material
+
     def generateVBO(self):
         ''' an abstract method for implimentation in subclasses'''
         raise NotImplementedError("Please Implement this method")
@@ -54,18 +55,26 @@ class Shape(dg.WorldObject):
         ''' an abstract method for implimentation in subclasses'''
         raise NotImplementedError("Please Implement this method")
     
+
+
+
+
 class PolySurface(Shape):
-    ''' A surface object defined by polygons
+    ''' 
+        A surface object defined by polygons
         Verticies - local x,y,z and w of each vert
         UVs - uv position list
         Normals - normal vector list 
         Edges - maybe not needed?
         Faces - dict List consisting of verts, uvs, and normals of 3 or more verts that make up a face
+        MaterialId - index of material
     '''
     def __init__(self, name, parent, file=None, verts=None, uvs=None, normals=None, faces=None, faceUvs=None, faceNormals=None, faceSizes=None, normalize=False):
         super(PolySurface, self).__init__(name, parent)
+        materialIds = None
+        materials = None
         if file is not None:
-            verts, uvs, normals, faces, faceUvs, faceNormals, faceSizes = obj.load(file, normalize)
+            verts, uvs, normals, faces, faceUvs, faceNormals, faceSizes, materialIds, materials = obj.load(file, normalize)
         self._verts = np.matrix([]) if verts is None else verts
         self._uvs = np.matrix([]) if uvs is None else uvs
         self._normals = np.matrix([]) if normals is None else normals
@@ -74,91 +83,44 @@ class PolySurface(Shape):
         self._faceNormals = np.matrix([]) if faceNormals is None else faceNormals
         self._faceSizes = [] if faceSizes is None else faceSizes
         self._triWorldMatrix = None
-        #self._vertsGL = None
-        #self._uvsGL = None
-        #self._normsGL = None
-        #self._facesGL = None
-        #self._kdTree = KdTree()
+        self._materialIds = [] if materialIds is None else materialIds 
+        self._materials = [] if materials is None else materials 
         self._VBOdone = False
-    def writeToObj(self, file):
-        return obj.write(file, self._verts, self._uvs, self._normals, self._faceVerts, self._faceUvs, self._faceNormals)
-    def getVertList(self):
-        ''' returns a list of verts in world space'''
-        if self._verts.shape[1] == 3:
-            self._verts = np.concatenate((self._verts,np.ones((self._verts.shape[0],1),dtype=np.float32)),axis=1)
-        #return (self._verts*self.worldMatrix).getA()
-        return self._verts.getA()
-    def getNormalList(self):
-        ''' returns a list of unit normals in world space'''
-        if self._normals.shape[1] == 3:
-            self._normals = np.concatenate((self._normals,np.zeros((self._normals.shape[0],1))),axis=1)
-        #normals = self._normals*self.worldMatrix
-        normals = self._normals
-        return (normals/norm(normals)).getA()
-    def buildKdTree(self, file=None):
-        if file is not None:
-            self._kdTree.load(file)
-        else:  # TODO construct the kd tree on our own
-            pass
-    def intersection(self, ray):  
-        toReturn = []
-        triangles = []
-        faces = self.triangulate()
-        if self._kdTree == []:  
-            triangles = self.triangulate 
-        else:  # use kd tree to get list of possible triangle intersections
-            triangles = self._kdTree.intersect(ray, 0)
-        for tri in [faces[t] for t in triangles]:
-            # run through each triangle and determine if it intersects our ray
-            verts = tri['verts']
-            normal = tri['normal']
-            intersects, d, point = ray.intersectTri(*verts, normal=normal)
-            if intersects:
-                #uvs = tri['uvs']
-                intersection = {'distance':d,'point':point,'normal':normal, 'material':tri['material']}  # will prob want to inclue uv in the future
-                toReturn.append(intersection)
-        return toReturn
-    def triangulate(self):
-        # triangles should consist of 3 verts in worldspace with corresponding uvs, normals, faceNormal, and a material of that face
-        if self.worldMatrix == self._triWorldMatrix:
-            return self._triangles
-        triangles = []
-        verts = self.getVertList()[np.ravel(self._faceVerts),:]
-        uvs = [] if self._uvs == [] else self._uvs[np.ravel(self._faceUvs),:]
-        norms = [] if self._normals == [] else self.getNormalList()[np.ravel(self._faceNormals),:]
-        start=0
-        end=0
-        for face in self._faceSizes:
-            # check to see if there are more than 3 verts on face
-            end+=face
-            if face == 3:
-                myVerts = verts[start:end]
-                myUvs = np.zeros((0,4)) if self._uvs == [] else uvs[start:end]
-                normals = np.zeros((0,4)) if self._normals == [] else norms[start:end]
-                faceNorm = self.calcTriNorm(*list(myVerts[:,:3])+list(normals[:,:3]))  # calculate the normal for the face - should probably calculate the plane and get the cross vector
-                triangles.append({'verts':myVerts, 'normals':normals, 'normal':faceNorm, 'material':self._material, 'uvs':myUvs})
-            else: # TODO Generate triangles for faces with more than 3 verts
-                pass
-            start = end
-        self._triangles = triangles
-        self._triWorldMatrix = self.worldMatrix
-        return self._triangles
+        self._shader = None
+
+        if len(self._materials) == 0:
+            # Add default material
+            material = dgm.Material('default')
+
+            self._materialIds = np.matrix(np.zeros([self._faceUvs.shape[0],1], dtype=np.uint64))
+            self._materials.append(material)
+
+
+   
     def triangulateGL(self):
         ''' Generate openGL triangle lists in VVVVVTTTTTNNNNN form
         Don't need to worry about world matrix - we will do that via model matrix '''
         # TODO something if max faceSizes is greater than 3
         if max(self._faceSizes) == 3:
             # Combine all the positions, normals, and uvs into one array, then remove duplicates - that is our vertex buffer
-            maxSize = 2**21                                             # numpy uint64 is 64 bits spread over 3 attributes is 21 bits 2**21/3 is max number of faces
+            maxSize = 2**16                                             # numpy uint64 is 64 bits spread over 3 attributes is 21 bits 2**21/3 is max number of faces
             fuvs = np.zeros_like(self._faceVerts, dtype=np.uint64) if len(self._uvs.A1) < 3 else self._faceUvs.astype(np.uint64)
             fnorms = np.zeros_like(self._faceVerts, dtype=np.uint64) if len(self._normals.A1) < 3 else self._faceNormals.astype(np.uint64)
-            f = np.array(self._faceVerts.astype(np.uint64)+(maxSize*fuvs).astype(np.uint64)+((maxSize**2)*fnorms).astype(np.uint64)).ravel()
+            fmatIds = np.zeros_like(self._faceVerts, dtype=np.uint64) 
+            if len(self._materialIds.A1) >= 1: 
+                fmatIds = np.resize(self._materialIds.A1, [3,len(self._materialIds.A1)]).transpose().astype(np.uint64) # expand to triangles
+
+            f = np.array(self._faceVerts.astype(np.uint64)+(maxSize*fuvs).astype(np.uint64)+((maxSize**2)*fnorms).astype(np.uint64)+((maxSize**3)*fmatIds).astype(np.uint64)).ravel()
             fullVerts, faces = np.unique(f, return_inverse=True)        # get the unique indices and the reconstruction(our element array)
+
             # Build our actual vertex array by getting the positions, normals and uvs from our unique indicies
             vertsGL = self._verts[fullVerts%maxSize].getA1()
             uvsGL = np.zeros((0),dtype=np.float32) if len(self._uvs.A1) < 3 else self._uvs[((fullVerts/maxSize)%maxSize).astype(fullVerts.dtype)].getA1()
-            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[(fullVerts/(maxSize**2)).astype(fullVerts.dtype)].getA1()
-            return np.concatenate((vertsGL,uvsGL,normsGL)), faces.astype(np.uint32), [len(vertsGL),len(uvsGL),len(normsGL)]
+            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[(fullVerts/(maxSize**2)%maxSize).astype(fullVerts.dtype)].getA1()
+            matIdsGL = np.zeros((0),dtype=np.float32) if len(self._materialIds.A1) < 1 else (fullVerts/(maxSize**3)).astype(np.float32)
+            
+            return np.concatenate((vertsGL,uvsGL,normsGL,matIdsGL)), faces.astype(np.uint32), [len(vertsGL),len(uvsGL),len(normsGL),len(matIdsGL)]
+
     def generateVBO(self):
         ''' generates OpenGL VBO and VAO objects '''
         if self._VBOdone:
@@ -166,8 +128,8 @@ class PolySurface(Shape):
         #global shader_pos, shader_uvs, shader_norm
         vertsGL, facesGL, lengths = self.triangulateGL()                                                    # make sure our vert list and face list are populated
         self.numTris = len(facesGL)
-        if self._material.shader is None:                                                                   # make sure our shader is compiled
-            self._material.compileShader()
+        if self._shader is None:                                                                   # make sure our shader is compiled
+            self.compileShader()
         self.vertexArray = GL.glGenVertexArrays(1)                                                          # create our vertex array
         GL.glBindVertexArray(self.vertexArray)                                                              # bind our vertex array
         self.vertexBuffer = GL.glGenBuffers(1)                                                              # Generate buffer to hold our vertex data
@@ -177,19 +139,29 @@ class PolySurface(Shape):
         stride = 0                                                                                          # stride does not work
         #stride = facesGL[0].nbytes
         #normOffset = self._verts[0].nbytes*lengths[0]+self._verts[0].nbytes*lengths[1]                      # offset will be length of positions + length of uvs
+        
         # Set up the array attributes
-        shader_pos = GL.glGetAttribLocation(self._material.shader, 'position')
-        shader_uvs = GL.glGetAttribLocation(self._material.shader, 'texCoord')                              # will return -1 if attribute isn't supported in shader
-        shader_norm = GL.glGetAttribLocation(self._material.shader, 'normal')                               # will return -1 if attribute isn't supported in shader
+        shader_pos = GL.glGetAttribLocation(self._shader, 'position')
+        shader_uvs = GL.glGetAttribLocation(self._shader, 'texCoord')                              # will return -1 if attribute isn't supported in shader
+        shader_norm = GL.glGetAttribLocation(self._shader, 'normal')                               # will return -1 if attribute isn't supported in shader
+        shader_materialId = GL.glGetAttribLocation(self._shader, 'materialId')                               # will return -1 if attribute isn't supported in shader
+        
         GL.glEnableVertexAttribArray(shader_pos)                                                            # Add a vertex position attribute
         GL.glVertexAttribPointer(shader_pos, 3, GL.GL_FLOAT, False, stride, None)                           # Describe the position data layout in the buffer
-        if len(self._uvs.A1) > 2  and shader_uvs != -1:
-            GL.glEnableVertexAttribArray(shader_uvs)                                                                        # Add a vertex uv attribute
-            GL.glVertexAttribPointer(shader_uvs, 2, GL.GL_FLOAT, False, stride, ctypes.c_void_p(lengths[0]*facesGL[0].nbytes))   # Describe the uv data layout in the buffer
+              
+        if len(self._uvs.A1) > 2 and shader_uvs != -1:
+            GL.glEnableVertexAttribArray(shader_uvs)                                                           # Add a vertex uv attribute
+            GL.glVertexAttribPointer(shader_uvs, 2, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:1]))*facesGL[0].nbytes))
+
         if len(self._normals.A1) > 2 and shader_norm != -1:
             GL.glEnableVertexAttribArray(shader_norm)                                                           # Add a vertex uv attribute
-            #GL.glVertexAttribPointer(shader_norm, 3, GL.GL_FLOAT, False, stride, None)                         # Describe the uv data layout in the buffer
-            GL.glVertexAttribPointer(shader_norm, 3, GL.GL_FLOAT, False, stride, ctypes.c_void_p((lengths[0]+lengths[1])*facesGL[0].nbytes))
+            GL.glVertexAttribPointer(shader_norm, 3, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:2]))*facesGL[0].nbytes))
+
+        if len(self._materialIds.A1) > 2 and shader_materialId != -1:
+            GL.glEnableVertexAttribArray(shader_materialId)                                                           # Add a vertex material attribute
+            GL.glVertexAttribPointer(shader_materialId, 1, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:3]))*facesGL[0].nbytes))
+        #import pdb;pdb.set_trace()
+
         # Create face element array
         self.triangleBuffer = GL.glGenBuffers(1)                                                            # Generate buffer to hold our face data
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, self.triangleBuffer)                                    # Bind our buffer as element array
@@ -197,72 +169,136 @@ class PolySurface(Shape):
         GL.glBindVertexArray( 0 )                                                                           # Unbind the VAO first (Important)
         GL.glDisableVertexAttribArray(shader_pos)                                                           # Disable our vertex attributes
         GL.glDisableVertexAttribArray(shader_uvs) if len(self._uvs.A1) > 2 and shader_uvs != -1 else True
-        GL.glDisableVertexAttribArray(shader_norm) if len(self._uvs.A1) > 2 and shader_norm != -1 else True
+        GL.glDisableVertexAttribArray(shader_norm) if len(self._normals.A1) > 2 and shader_norm != -1 else True
+        GL.glDisableVertexAttribArray(shader_materialId) if len(self._materialIds.A1) > 2 and shader_materialId != -1 else True
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)                                                              # Unbind the buffer
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)                                                      # Unbind the buffer
         self._VBOdone = True
+
     def renderGL(self, filmMatrix=None, cameraMatrix=None):
-        #print('%s entering render. %s'%(self.__class__, self._name))
-        GL.glUseProgram(self._material.shader)
+        GL.glUseProgram(self._shader)
         # multiply the world transform to the camera matrix
         cameraMatrix = matlib.identity(4) if cameraMatrix is None else cameraMatrix
         filmMatrix = matlib.identity(4) if filmMatrix is None else filmMatrix
-        modelViewMatrix = np.array(self.worldMatrix*cameraMatrix, dtype=np.float32)
-        mvMatrixUniform = GL.glGetUniformLocation(self._material.shader, 'modelViewMatrix')
-        GL.glUniformMatrix4fv(mvMatrixUniform, 1, GL.GL_FALSE, modelViewMatrix)
-        normalMatrix = np.ascontiguousarray((self.worldMatrix*cameraMatrix).getI().getT()[:3,:3], dtype=np.float32)
-        nMatrixUniform = GL.glGetUniformLocation(self._material.shader, 'normalMatrix')
-        GL.glUniformMatrix3fv(nMatrixUniform, 1, GL.GL_FALSE, normalMatrix)
-        finalMatrix = np.array(modelViewMatrix*filmMatrix, dtype=np.float32)
-        fMatrixUniform = GL.glGetUniformLocation(self._material.shader, 'fullMatrix')
-        GL.glUniformMatrix4fv(fMatrixUniform, 1, GL.GL_FALSE, finalMatrix)
+
+        modelMatrix = np.ascontiguousarray(self.worldMatrix.value, dtype=np.float32)
+        location = GL.glGetUniformLocation(self._shader, 'modelMatrix')
+        GL.glUniformMatrix4fv(location, 1, GL.GL_FALSE, modelMatrix)
+
+        viewMatrix = np.ascontiguousarray(cameraMatrix.value, dtype=np.float32)
+        location = GL.glGetUniformLocation(self._shader, 'viewMatrix')
+        GL.glUniformMatrix4fv(location, 1, GL.GL_FALSE, viewMatrix)
+
+        projectionMatrix = np.ascontiguousarray(filmMatrix, dtype=np.float32)
+        location = GL.glGetUniformLocation(self._shader, 'projectionMatrix')
+        GL.glUniformMatrix4fv(location, 1, GL.GL_FALSE, projectionMatrix)
+
+        samplerCount = 0
+        for (i,material) in enumerate(self._materials):
+            matName = 'material%02d' % i
+            samplerCount += material.pushToShader(matName, self._shader, samplerCount)
+
         # bind our VAO and draw it
         GL.glBindVertexArray(self.vertexArray)
         GL.glDrawElements(GL.GL_TRIANGLES,self.numTris,GL.GL_UNSIGNED_INT, None)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
-        #print('%s leaving render. %s'%(self.__class__, self._name))
-    @staticmethod
-    def calcTriNorm(a,b,c, na=None, nb=None, nc=None):
-        normal = cross((b - a),(c - a))
-        normal = normal/norm(normal)
-        # check to see if it matches sum of vert norms
-        if na is not None and nb is not None and nc is not None:
-            sum = na+nb+nc
-            if dot(normal,sum) < 0:
-                normal *= -1
-        return normal
-    @classmethod
-    def polySphere(cls, name, parent, radius=1, subDivAxis=32, subDivHeight=16):
-        numVertices = (subDivHeight - 2) * subDivAxis + 2
-        numFaces = (subDivHeight - 2) * (subDivAxis - 1) * 2
-        verts = matlib.zeros((0,3),dtype=np.float32)
-        for j in range(1,subDivHeight-1):
-            for i in range(subDivAxis):
-                theta = float(j)/(subDivHeight-1) * pi
-                phi = float(i)/(subDivAxis-1)  * pi * 2
-                x = sin(theta) * cos(phi) * radius
-                y = cos(theta) * radius
-                z = -sin(theta) * sin(phi) * radius
-                verts = np.append(verts, np.array([[x,y,z]]), axis=0)
-        verts = np.append(verts, np.array([[0,radius,0]]), axis=0)
-        verts = np.append(verts, np.array([[0,-radius,0]]), axis=0)
-        # normals = verts  # at least at initialization
-        # faces is a list of 3 indicies in verts that make up each face
-        faces = matlib.zeros((0,3), dtype=np.uint32)
-        faceSizes = []
-        for j in range(subDivHeight-3):
-            for i in range(subDivAxis-1):
-                faces = np.append(faces, np.array([[j*subDivAxis + i, (j+1)*subDivAxis + (i+1), j*subDivAxis + (i+1)]]), axis=0)
-                faces = np.append(faces,np.array([[j*subDivAxis + i, (j+1)*subDivAxis + i, (j+1)*subDivAxis + (i+1)]]), axis=0)
-                faceSizes.append(3)
-                faceSizes.append(3)
-        for i in range(subDivAxis-1):
-            faces = np.append(faces,np.array([[(subDivHeight-2)*subDivAxis, i, i + 1]]), axis=0)
-            faces = np.append(faces,np.array([[(subDivHeight-2)*subDivAxis + 1, (subDivHeight-3)*subDivAxis + (i+1), (subDivHeight-3)*subDivAxis + i]]), axis=0)
-            faceSizes.append(3)
-            faceSizes.append(3)
-        verts = np.matrix(verts,dtype=np.float32)
-        faces = np.matrix(faces,dtype=np.uint32)
-        return cls(name, parent=parent, verts=verts, normals=verts, faces=faces, faceNormals=faces, faceSizes=faceSizes)
+        
+    @property
+    def vertexShader(self): 
+        return config.shaderHeader + """
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
 
+in vec3 position;
+in vec3 normal;
+in vec2 texCoord;
+in float materialId;
+
+out vec3 fragNormal;
+out vec4 fragPosition;
+out vec2 fragTexCoord;
+flat out float fragMaterialId;
+
+void main()
+{
+    mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+    gl_Position = mvp * vec4(position, 1.0);
+    fragNormal = normalize(transpose(inverse(modelMatrix)) * vec4(normal,1)).xyz;
+    fragPosition = viewMatrix * modelMatrix * vec4(position, 1.0);
+    fragTexCoord = texCoord;
+    fragMaterialId = materialId;
+}
+            """
+
+    @property
+    def fragmentShader(self): 
+        code = config.shaderHeader;
+        code += '''
+
+uniform mat4 viewMatrix;
+
+smooth in vec3 fragNormal;      // normal in camera space
+smooth in vec4 fragPosition;    // position in camera space
+smooth in vec2 fragTexCoord;
+flat in float fragMaterialId;
+
+// Force location to 0 to ensure its the first output
+layout (location = 0) out vec4 FragColor;
+
+'''
+        code += dgm.Material.getShaderStruct()
+        for (i,material) in enumerate(self._materials):
+            matName = 'material%02d' % i
+            code += material.fragmentShaderDefinitions(matName)
+            code += material.fragmentShaderShading(matName)
+
+        #code += '''
+        #void main() {
+        #    FragColor = vec4(0);
+        #}
+        #'''
+        #return code
+
+        code += '''
+
+void main() {
+    vec3 lightPosition = vec3(2.0f,3.0f,4.0f);
+    vec3 ligthColor = vec3(2.0f);
+
+    vec3 normal = normalize(fragNormal);
+    vec3 viewerPos = (inverse(viewMatrix) * vec4(0, 0, 0, 1)).xyz;
+
+    vec3 outDirection = normalize(viewerPos - fragPosition.xyz);
+    vec3 inDirection = normalize(lightPosition - fragPosition.xyz);   
+
+    vec3 color = vec3(0);
+'''
+        for (i,material) in enumerate(self._materials):
+            matName = 'material%02d' % i
+            code += '''
+    if (int(fragMaterialId + 0.5) == {materialId}) {{
+        color += {name}_shading(inDirection, outDirection, normal, fragTexCoord);
+    }}
+            '''.format(name = matName, materialId = i)
+        code += '''
+    color *= ligthColor;
+    
+    FragColor.rgb = color;
+    //FragColor.rgb = normal;
+    FragColor.a = 1;
+
+    //FragColor.rgb = vec3(0);
+    //FragColor.rg = fragTexCoord;//material00.diffuseColor;
+}'''        
+        return code;
+
+    def compileShader(self):
+        #print(self.fragmentShader)
+        #print(self.fragmentShader.split('\n')[37])
+        #import pdb; pdb.set_trace()
+        self._shader = shaders.compileProgram(
+            shaders.compileShader(self.vertexShader, GL.GL_VERTEX_SHADER),
+            shaders.compileShader(self.fragmentShader, GL.GL_FRAGMENT_SHADER)
+        )

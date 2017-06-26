@@ -68,8 +68,14 @@ __version__ = '1.0'
 import numpy as np
 from numpy.linalg import norm
 import itertools as it
+import os
+import cv2
+import dGraph.materials as dgm
+import dGraph.textures as dgt
+import OpenGL.GL as GL
+from OpenGL.GL import *
 
-def load(file, normalize=False):
+def load(file, normalize=False, loadMaterials = True):
     ''' Load an OBJ from a file '''
     verts = []
     uvs = []
@@ -77,6 +83,11 @@ def load(file, normalize=False):
     faceVerts = []
     faceUvs = []
     faceNormals = []
+    materialIds = []
+    if loadMaterials:
+        materialKeys = dict()
+        currentMaterialId = 0
+        materialData = None
     #minV = [float('inf'),float('inf'),float('inf')]
     #maxV = [-float('inf'),-float('inf'),-float('inf')]
     with open(file) as f:
@@ -106,9 +117,17 @@ def load(file, normalize=False):
             elif tokens[0] == 'vp':  # Parameter space vertices in ( u [,v] [,w] ) form; free form geometry statement.
                 pass
             elif tokens[0] == 'mtllib':  # external .mtl file name
-                pass
+                if loadMaterials:
+                    mtlFile = tokens[1]
+                    if not os.path.isfile(mtlFile):
+                        mtlFile = os.path.join(os.path.dirname(file), mtlFile)
+                    materialData = loadMtl(mtlFile)
             elif tokens[0] == 'usemtl':  # specifies the material name for the element following it.
-                pass
+                if loadMaterials:
+                    material = tokens[1]
+                    if not material in materialKeys:
+                        materialKeys[material] = len(materialKeys)
+                    currentMaterialId = materialKeys[material]
             elif tokens[0] == 'o':  # object name
                 pass
             elif tokens[0] == 'g':  # group name
@@ -135,6 +154,8 @@ def load(file, normalize=False):
                 faceVerts.append(vertList)
                 faceUvs.append(uvList) 
                 faceNormals.append(normList)
+                if loadMaterials:
+                    materialIds.append(currentMaterialId)
             elif tokens[0] == 'curv':  # a curve
                 pass
             elif tokens[0] == 'curv2': # a surface curve
@@ -143,6 +164,8 @@ def load(file, normalize=False):
                 pass
     
     verts, uvs, normals = [np.matrix(a,dtype=np.float32) if a != [] else np.matrix([]) for a in [verts, uvs, normals]]
+    materialIds = np.matrix(materialIds,dtype=np.uint64) if materialIds else np.matrix([])
+        
     faceSizes = [x for x in map(len, faceVerts)]
     if max(faceSizes) == min(faceSizes):    # convert to matrix since all faces are same size
         faceVerts, faceUvs, faceNormals = [np.matrix(a,dtype=np.uint32) if a != [] else np.matrix([]) for a in [faceVerts, faceUvs, faceNormals]]
@@ -150,7 +173,68 @@ def load(file, normalize=False):
     #    faceVerts, faceUvs, faceNormals = [np.array([i for sub in a for i in sub],dtype=np.uint32) if a != [] else [] for a in [faceVerts, faceUvs, faceNormals]]
     print("Loaded mesh from %s. (%d vertices, %d uvs, %d normals, %d faces)"%(file, len(verts), len(uvs), len(normals), len(faceVerts)))
     #print "Mesh bounding box is: (%0.4f, %0.4f, %0.4f) to (%0.4f, %0.4f, %0.4f)"%(minV[0], minV[1], minV[2], maxV[0], maxV[1], maxV[2])
-    return verts, uvs, normals, faceVerts, faceUvs, faceNormals, faceSizes
+
+    if loadMaterials:
+        materials = [None for x in materialKeys]
+        for (matName, matId) in materialKeys.items():
+            materials[matId] = materialData[matName]
+    else:
+        materialIds = None
+        materials = None
+
+    return verts, uvs, normals, faceVerts, faceUvs, faceNormals, faceSizes, materialIds, materials
+
+
+def loadMtl(file):
+    materials = dict()
+    material = None
+    with open(file) as f:
+        for line in f:
+            if len(line) <= 1:
+                continue
+            tokens = line.split()
+            if tokens[0] == '#':  # Comment
+                pass
+            elif tokens[0] == 'newmtl': # new material
+                material = dgm.Material(tokens[1])
+                materials[tokens[1]] = material
+            elif tokens[0] == 'Ns': # Glossiness
+                # What comes out of Blender has to be scaled by 0.511 to get the actual value used in computations
+                material.glossiness = float(tokens[1]) * 0.511
+            elif tokens[0] == 'Ka': # Ambient color. Ignored.
+                pass
+            elif tokens[0] == 'Kd': # Diffuse color
+                material.diffuseColor = np.fromiter(map(float, tokens[1:4]), float)
+            elif tokens[0] == 'Ks': # Specular color
+                material.specularColor = np.fromiter(map(float, tokens[1:4]), float)
+            elif tokens[0] == 'Ke': # Emissive color. Ignored.
+                pass
+            elif tokens[0] == 'Ni': # Refractive index. Ignored.
+                pass
+            elif tokens[0] == 'd': # Opacity. Ignored.
+                pass
+            elif tokens[0] == 'illum': # Controls the illumination model. Ignored.
+                pass
+            elif tokens[0] == 'map_Kd': # Diffuse texture.
+                imgFile = tokens[1]
+                if not os.path.isfile(imgFile):
+                    imgFile = os.path.join(os.path.dirname(file), imgFile)
+                    material.diffuseTexture = loadTexture(imgFile)
+                
+    return materials
+
+def loadTexture(imgFile):
+    img = cv2.imread(imgFile)
+    if img is None:
+        return None
+
+    texture = dgt.createTexture(img,mipLevels=0,wrap=GL_REPEAT,filterMag=GL_LINEAR,filterMin=GL_LINEAR_MIPMAP_LINEAR)
+    glBindTexture(GL_TEXTURE_2D, texture)
+    GL.glGenerateMipmap(GL_TEXTURE_2D)
+    glBindTexture(GL_TEXTURE_2D, 0)
+
+    return texture
+
 
 def write(file, verts, uvs, normals, faceVerts, faceUvs, faceNormals ):
     ''' Write out an obj to a file '''

@@ -43,8 +43,8 @@ def loadScene(renderGraph):
     teapot.setTranslate(0.,-.20,-1.)
     teapot.setRotate(0.,0.,0.)
 
-    #material1 = scene.add(dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1))
-    material1 = scene.add(dgm.Lambert('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1))
+    material1 = scene.add(dgm.Material('material1'))
+    material1.diffuseColor *= 0.4
     for obj in scene.shapes:
         scene[obj].setMaterial(material1)
 

@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{8ef01922-aa85-41f5-8af3-2f496f49e70e}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>test\testDoF.py</StartupFile>
+    <StartupFile>test\testMtl.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -26,8 +26,8 @@
   <ItemGroup>
     <Compile Include="cameras\__init__.py" />
     <Compile Include="config.py" />
-    <Compile Include="io\obj.py" />
-    <Compile Include="io\__init__.py" />
+    <Compile Include="dio\obj.py" />
+    <Compile Include="dio\__init__.py" />
     <Compile Include="kdtree.py" />
     <Compile Include="lights\__init__.py" />
     <Compile Include="materials\warp.py" />
@@ -39,6 +39,7 @@
     <Compile Include="shapes\__init__.py" />
     <Compile Include="test\test0.py" />
     <Compile Include="test\test1.py" />
+    <Compile Include="test\testMtl.py" />
     <Compile Include="test\testDoF.py" />
     <Compile Include="test\test2.py" />
     <Compile Include="test\test3.py" />
@@ -58,7 +59,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="cameras" />
-    <Folder Include="io" />
+    <Folder Include="dio\" />
+    <Folder Include="dio\__pycache__\" />
     <Folder Include="lights" />
     <Folder Include="materials" />
     <Folder Include="render\" />
@@ -74,6 +76,8 @@
     <InterpreterReference Include="{c374890c-e3cd-4c53-854b-00833a403161}\3.5" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="dio\__pycache__\obj.cpython-35.pyc" />
+    <Content Include="dio\__pycache__\__init__.cpython-35.pyc" />
     <Content Include="render\__pycache__\__init__.cpython-35.pyc" />
     <Content Include="shaders\DepthOfFieldPerceptualFragment.glsl" />
     <Content Include="shaders\GaussMIPTexture2DFragment.glsl" />

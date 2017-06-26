@@ -23,244 +23,83 @@ from numpy.linalg import norm
 from numpy import dot, vdot
 import dGraph as dg
 import dGraph.config as config
+import dGraph.textures as dgt
 #import cv2
 
+
+
+
 class Material(object):
-    ''' A definition of a lighting model to define the illumination of a surface
-        ???? Accepts Shadows
-        Render point (given a position and normal, will return the color of specified point)
-    '''
-    _materialList = {}                                          # store all existing materials here
-    def __new__(cls, name, *args, **kwargs):                    # keeps track of all existing materials
-        if name in cls._materialList.keys():
-            if not isinstance(cls._materialList[name],cls):     # do some type checking to prevent mixed results
-                raise TypeError('Material of name "%s" already exists and is type: %s'%(name, type(cls._materialList[name])))
-        else:
-            cls._materialList[name] = super(Material, cls).__new__(cls)
-            cls._materialList[name].__init__(name, *args, **kwargs) # this is ugly. __new__ should not be used for this at all
-        return cls._materialList[name]
-    def __init__(self, name, ambient=(.3,.3,.3), amb_coeff=1, **kwargs):      
-        self._name = name
-        self.classifier = 'material'
-        #self._ambient = dg.Plug()
-        self.setAmbient(ambient)
-        self.setAmbientCoefficient(amb_coeff)
-        self.shader = None
-        self._vertexShader = """
-uniform mat4 fullMatrix;
-uniform mat4 modelViewMatrix;
-uniform mat3 normalMatrix;
-in vec3 position;
-in vec3 normal;
-out vec3 fragNormal;
-out vec4 fragPosition;
-void main()
-{
-    gl_Position = fullMatrix * vec4(position, 1.0);
-    fragNormal = normalize(normalMatrix * normal);
-    fragPosition = modelViewMatrix * vec4(position, 1.0);
-}
-            """
-        self._fragmentShader = """
-void main()
-{
-    gl_FragColor = vec4(%ff, %ff, %ff, %ff);
-}
-            """
-    @property
-    def name(self):
-        return self._name
-    @property
-    def vertexShader(self):
-        '''The output of the vertex shader is clip coordinates (not viewport coordinates) - OpenGL still performs the "divide by w" step automatically.'''
-        return '%s%s'%(config.shaderHeader, self._vertexShader)
-    @property
-    def fragmentShader(self):
-        a = np.ones(4)
-        a[:self._ambient.shape[0]] = self._ambient*self._amb_coeff
-        return '%s%s'%(config.shaderHeader,self._fragmentShader%tuple(a))
-    def compileShader(self):
-        self.shader = shaders.compileProgram(
-            shaders.compileShader(self.vertexShader, GL.GL_VERTEX_SHADER),
-            shaders.compileShader(self.fragmentShader, GL.GL_FRAGMENT_SHADER)
-        )
-    def setAmbient(self, ambient):
-        self._ambient = np.array(ambient)
-    def setAmbientCoefficient(self, amb_coeff):
-        self._amb_coeff = amb_coeff
-    def render(self, point, normal, **kwargs):
-        return self._ambient*self._amb_coeff
-
-class Test(Material):
-    ''' A test material class that is lighting agnostic and displays all faces distinctly '''
-    def __init__(self,name, **kwargs):
-        super(Test, self).__init__(name, **kwargs)
-        self._fragmentShader = '''
-smooth in vec3 fragNormal;      // normal in camera space
-smooth in vec4 fragPosition;    // position in camera space
-
-// Force location to 0 to ensure its the first output
-layout (location = 0) out vec4 FragColor;
-
-void main()
-{
-  //FragColor = fragPosition;
-  //FragColor = vec4(fragNormal, 1.0);
-  //FragColor = vec4(fragPosition.z/-10,fragPosition.z/-10,fragPosition.z/-10,1.0f);
-  //FragColor = vec4(gl_FragCoord.z*1000,gl_FragCoord.z*1000,gl_FragCoord.z*1000,1.0f);
-  int ID = gl_PrimitiveID + 1;
-  FragColor = vec4(mod(ID,15)/15,mod(ID,7)/7,mod(ID,3)/3, 1.0f);
-}'''
-    @property
-    def fragmentShader(self):
-        return '%s%s'%(config.shaderHeader,self._fragmentShader)
-
-class Lambert(Material):
-    ''' A material class based on the Lambert illumination model
-        Diffuse Color: (1, 1, 1)
-        Diffuse Coeff: 0-1
-    '''
-    def __init__(self, name, diffuse=(0,0,0), diff_coeff=0, **kwargs):        
-        super(Lambert, self).__init__(name, **kwargs)
-        #self._shadows = shadows
-        self.setDiffuse(diffuse)
-        self.setDiffuseCoefficient(diff_coeff)
-        self._fragmentShader = '''
-smooth in vec3 fragNormal;      // normal in camera space
-smooth in vec4 fragPosition;    // position in camera space
-
-// Force location to 0 to ensure its the first output
-layout (location = 0) out vec4 FragColor;
-
-// Lights
-struct Light {
-    vec3 color;
-    vec3 position;
-};  
-
-float lambert(vec3 N, vec3 L)
-{
-  vec3 nrmN = normalize(N);
-  vec3 nrmL = normalize(L);
-  float result = dot(nrmN, nrmL);
-  return max(result, 0.0);
-}
-
-void main()
-{
-  Light light;
-  light.position = vec3(2.0f,3.0f,4.0f);
-  light.color = vec3(%s, %s, %s);
-
-  vec3 L = normalize(light.position.xyz - fragPosition.xyz);   
-  vec3 Idiff = light.color * lambert(fragNormal,L);  
-  Idiff = clamp(Idiff, 0.0, 1.0); 
-  Idiff = Idiff + vec3(%s, %s, %s);
-  FragColor = vec4(Idiff, 1.0);
-  //FragColor = vec4(fragNormal, 1.0);
-}'''
-
-    @property
-    def fragmentShader(self):
-        diffused = self._fragmentShader%(tuple(self._diffuse*self._diff_coeff)+('%s','%s','%s'))
-        diffused = diffused%tuple(self._ambient*self._amb_coeff)
-        return '%s%s'%(config.shaderHeader,diffused)
-        #return self._fragmentShader
-    def setDiffuse(self, diffuse):
-        self._diffuse = np.array(diffuse)
-    def setDiffuseCoefficient(self, diff_coeff):
-        self._diff_coeff = diff_coeff
-    def render(self, point, normal, uv=None, **kwargs):
-        global shadows, epsilon
-        ''' BRDF render algorithm goes here '''  
-        lightList = Light._lightList
-        myDiffuse = self._diffuse*self._diff_coeff
-        colorList = []
-        if (myDiffuse==0).all():
-            colorList.append(myDiffuse)
-        else:
-            for light in lightList.values():
-                lightPos = xm.getTranslate(light.worldMatrix)
-                vector = Ray._calcVector(point,lightPos)
-                dist = sqrt(vdot(vector,vector))
-                if shadows:
-                    ray = Ray(point+epsilon*normal, vector)
-                    intersections = ray.evaluate(light.getScene())
-                    between = [i for i in intersections if i['distance'] < dist]
-                    if between:
-                        colorList.append(np.array([0,0,0]))
-                        continue
-                vector = vector/norm(vector)
-                colorList.append(myDiffuse*light.illumination(dist)*max(0,dot(normal, vector)))
-        return sum(colorList)/float(len(colorList))+super(Lambert, self).render(point,normal)   # add sum of lights and ambient together
-        
-class Blinn(Lambert):
     ''' A material class based on the Phong illumination model
-        Specular Color: (1, 1, 1)
-        Specular Coeff: 0-1
-        Specular Power: 0-1
     '''
-    def __init__(self, name, specular=(0,0,0), spec_coeff=0, spec_power=0, **kwargs):        
-        super(Blinn, self).__init__(name, **kwargs)
-        self.setSpecular(specular)
-        self.setSpecularCoefficient(spec_coeff)
-        self.setSpecularPower(spec_power)
-    def setSpecular(self, specular):
-        self._specular = np.array(specular)
-    def setSpecularCoefficient(self, spec_coeff):
-        self._spec_coeff = spec_coeff
-    def setSpecularPower(self, spec_power):
-        self._spec_power = spec_power
-    def render(self, point, normal, viewVector, uv=None, **kwargs):
-        global shadows, epsilon
-        ''' BRDF render algorithm goes here '''
-        lightList = Light._lightList
-        mySpec = self._specular*self._spec_coeff
-        colorList = []
-        if (mySpec==0).all():
-            colorList.append(mySpec)
+    def __init__(self, name = ''):      
+        self.name = name
+        self.classifier = 'material'
+
+        self.diffuseColor = np.array([1.0, 1.0, 1.0])
+        self.specularColor = np.array([0.0, 0.0, 0.0])
+        self.glossiness = 1.0
+
+        self.diffuseTexture = None
+
+
+    @staticmethod
+    def getShaderStruct():
+        return """
+struct Material {
+    vec3 diffuseColor;
+    vec3 specularColor;
+    float glossiness;
+};
+
+
+        """
+
+    def fragmentShaderDefinitions(self, name):
+        code = "";
+        code += "uniform Material {name};\n".format(name=name)
+        if self.diffuseTexture:
+            code += "uniform sampler2D {name}_diffuse;\n".format(name=name)
+        code += "\n\n";
+        return code
+
+    def fragmentShaderShading(self, name):
+        code = """
+vec3 {name}_shading(
+	const vec3 inDirection, 
+	const vec3 outDirection,
+	const vec3 normal,
+	const vec2 texCoord)
+{{"""
+        if self.diffuseTexture:
+            code += '\n vec3 diffuseTexSample = texture({name}_diffuse, texCoord).rgb;\n'
         else:
-            for light in lightList.values():
-                lightPos = xm.getTranslate(light.worldMatrix)
-                vector = Ray._calcVector(point,lightPos)
-                dist = sqrt(vdot(vector,vector))
-                if shadows:
-                    ray = Ray(point+epsilon*normal, vector)
-                    intersections = ray.evaluate(light.getScene())
-                    between = [i for i in intersections if i['distance'] < dist]
-                    if between:
-                        colorList.append(np.array([0,0,0]))
-                        continue
-                vector = vector/norm(vector)        
-                h = vector-viewVector/norm(vector-viewVector)   # Blinn-Phong equation
-                h = h/norm(h)
-                blinn = max(0,dot(h,normal))**self._spec_power
-                colorList.append(mySpec*light.illumination(dist)*blinn)
-        return sum(colorList)/float(len(colorList))+super(Blinn, self).render(point,normal)   # add sum of lights and lambert together
+            code += '\n vec3 diffuseTexSample = vec3(1);\n'
+        code += """
+    vec3 ambientLevel = vec3(0.1); // This should be light property
+	vec3 diffuse = {name}.diffuseColor * diffuseTexSample;
+	vec3 specularity = {name}.specularColor;
+	float glossiness = 10 * {name}.glossiness;
 
-class Reflective(Blinn):
-    ''' A reflective material class based on the Phong illumination model
-        Reflectance Strength: 0-1
-    '''
-    def __init__(self, name, reflectance=0, **kwargs):        
-        super(Reflective, self).__init__(name, **kwargs)
-        self.setReflectance(reflectance)
-    def setReflectance(self, reflectance):
-        self._reflectance = reflectance
-    def render(self, point, normal, viewVector, world, uv=None, **kwargs):
-        #L = (1-r)(La + Ld + Ls) + rLm
-        ''' Recursive raytracing algorithm goes here '''
-        # verify current reflectDepth, if more than 1, stop reflecting, just return blinn portion
-        global reflectDepth
-        if reflectDepth > reflectionsMax:
-            #print "max reflection depth achieved"
-            return super(Reflective, self).render(point,normal,viewVector)
-        # calculate new ray (reflect viewVector across normal)  r=v?2(v?n)n
-        refVect = viewVector-2*(dot(viewVector,normal))*normal
-        ray = Ray(point+epsilon*normal, refVect)
-        # render the new ray
-        reflectDepth += 1
-        color = ray.render(world)
-        reflectDepth -= 1
-        return (self._reflectance*color)+((1.0-self._reflectance)*super(Reflective, self).render(point,normal,viewVector))   # add weighted reflected and weighted blinn together
+    vec3 diffShade = diffuse * (ambientLevel + max(0, dot(inDirection, normal)));
+    vec3 specShade = specularity * pow(max(0, dot(outDirection, -reflect(inDirection, normal))), glossiness);
 
+
+	return diffShade + specShade;
+		
+}}
+
+
+"""
+        code = code.format(name=name)
+        return code
+
+    def pushToShader(self, name, shader, textureIndex):
+        #import pdb; pdb.set_trace();
+        shaders.uniform(shader, '{name}.diffuseColor'.format(name=name), np.array(self.diffuseColor, np.float32))
+        shaders.uniform(shader, '{name}.specularColor'.format(name=name), np.array(self.specularColor, np.float32))
+        shaders.uniform(shader, '{name}.glossiness'.format(name=name), float(self.glossiness))
+        if self.diffuseTexture:
+            dgt.attachTextureNamed(self.diffuseTexture, shader, textureIndex, '{name}_diffuse'.format(name = name))
+            textureIndex += 1
+        return textureIndex

@@ -13,7 +13,7 @@ __version__ = '1.0'
 import OpenGL.GL as GL
 from OpenGL.GL import *
 import numpy as np
-import os
+import os, math
 import dGraph as dg
 import dGraph.util.imageManip as dgim
 import cv2
@@ -113,6 +113,10 @@ def createTexture(image, mipLevels=1,wrap=GL_REPEAT,filterMag=GL_LINEAR,filterMi
 
 def createEmptyTexture(width, height, mipLevels=1, wrap=GL_MIRRORED_REPEAT, filterMag=GL_LINEAR, filterMin=GL_LINEAR_MIPMAP_LINEAR, gltype=GL_UNSIGNED_BYTE, isf=GL_RGBA8,**kwargs):
     ''' allocate space on the gpu for a texture, but do not fill it with anything '''
+    if mipLevels <= 0:
+        # Use max
+        size = max(width, width)
+        mipLevels = int(math.floor(math.log(size) / math.log(2.0))) + 1
     texture = glGenTextures(1)                           # setup our texture
     glBindTexture(GL_TEXTURE_2D, texture)                # bind texture
     glTexStorage2D(GL_TEXTURE_2D, mipLevels, isf, width, height)

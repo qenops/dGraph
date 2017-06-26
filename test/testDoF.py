@@ -35,7 +35,7 @@ def loadScene(renderGraph,file=None):
     '''Load or create our sceneGraph'''
     scene = renderGraph.add(dg.SceneGraph('DoF_Scene', file))
 
-    cube = scene.add(dgs.PolySurface('cube', scene, file = '%s/cube.obj'%MODELDIR))
+    cube = scene.add(dgs.PolySurface('cube', scene, file = '%s/TexturedCube.obj'%MODELDIR))
     cube.setScale(1,1,1)
     cube.setTranslate(0.,0.,-4)
     cube.setRotate(25.,65.,23.)
@@ -44,11 +44,11 @@ def loadScene(renderGraph,file=None):
     teapot.setScale(.4,.4,.4)
     teapot.setTranslate(.5,-.2,-1.5)
     teapot.setRotate(5.,0.,0.)
+    teapot.material.diffuseColor = np.array([1.0, 1.0, 0.8]) * 0.5
+    teapot.material.specularColor = np.array([1.0, 0.8, 0.7]) * 0.5
+    teapot.material.glossiness = 20
     
-    material1 = scene.add(dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1))
-    for sceneName in renderGraph.scenes:
-        for obj in renderGraph[sceneName].shapes:
-            renderGraph[sceneName][obj].setMaterial(material1)
+    
 
     renderGraph.focus = 2.
     renderGraph.focusChanged = False
