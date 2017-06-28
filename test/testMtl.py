@@ -25,6 +25,7 @@ import dGraph.shapes as dgs
 import dGraph.render as dgr
 import dGraph.materials as dgm
 import dGraph.shaders as dgshdr
+import dGraph.lights as dgl
 import dGraph.config as config
 import dGraph.util.imageManip as im
 import time
@@ -34,6 +35,12 @@ MODELDIR = '%s/data'%os.path.dirname(__file__)
 def loadScene(renderGraph,file=None):                
     '''Load or create our sceneGraph'''
     scene = renderGraph.add(dg.SceneGraph('DoF_Scene', file))
+
+    # Lights
+    scene.ambientLight = np.array([1,1,1], np.float32) * 0.2
+    scene.lights.append(dgl.PointLight(intensity = np.array([0,1,1], np.float32), position = np.array([2,3,4], np.float32)))
+    scene.lights.append(dgl.DirectionLight(intensity = np.array([1,0,1], np.float32), direction = np.array([-1,0.5,0.1], np.float32)))
+    
 
     # This guy has mtl and textures
     cube = scene.add(dgs.PolySurface('cube', scene, file = '%s/TexturedCube.obj'%MODELDIR))

@@ -30,6 +30,7 @@ import OpenGL.GL as GL
 
 import dGraph.xformMatrix as xm
 import dGraph.dio.obj as obj
+import dGraph.shaders as dgshdr
 
 class SceneGraph(dict):
     ''' A top level object that houses everything in a scene '''
@@ -42,7 +43,8 @@ class SceneGraph(dict):
         self.cameras = set()
         self.shapes = set()
         self.materials = set()
-        self.lights = set()
+        self.lights = []
+        self.ambientLight = np.array([0.1, 0.1, 0.1], np.float32)
         # could put the new light and new material members here - and keep track of them here rather than in the class
         # maybe a good place to store a dict of all the objects in the scene? - for searching and stuff  - DONE!!!
     def __hash__(self):
@@ -81,6 +83,25 @@ class SceneGraph(dict):
     def render(self):
         for rg in self.renderGraphs:
             self[rg].render(0)
+
+    def fragmentShaderLights(self):
+        code = "\n";
+        code += "uniform int lightCount;\n"
+        code += "uniform vec3 ambientLight;\n"
+        code += "\n"
+
+        for i,light in enumerate(self.lights):
+            code += light.fragmentShader(i)
+
+        return code
+
+    def pushLightsToShader(self, shader):
+        dgshdr.setUniform(shader, 'lightCount', len(self.lights))
+        dgshdr.setUniform(shader, 'ambientLight', self.ambientLight)
+
+        for i,light in enumerate(self.lights):
+            light.pushToShader(i, shader)
+
 
 class ComparableMixin(object):
     def __eq__(self, other):

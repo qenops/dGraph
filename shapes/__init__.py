@@ -69,7 +69,7 @@ class PolySurface(Shape):
         Faces - dict List consisting of verts, uvs, and normals of 3 or more verts that make up a face
         MaterialId - index of material
     '''
-    def __init__(self, name, parent, file=None, verts=None, uvs=None, normals=None, faces=None, faceUvs=None, faceNormals=None, faceSizes=None, normalize=False):
+    def __init__(self, name, parent, file=None, verts=None, uvs=None, normals=None, faces=None, faceUvs=None, faceNormals=None, faceSizes=None, normalize=False, scene=None):
         super(PolySurface, self).__init__(name, parent)
         materialIds = None
         materials = None
@@ -95,6 +95,11 @@ class PolySurface(Shape):
             self._materialIds = np.matrix(np.zeros([self._faceUvs.shape[0],1], dtype=np.uint64))
             self._materials.append(material)
 
+        if scene is None and isinstance(parent, dg.SceneGraph):
+            scene = parent
+        if scene is None:
+            raise RuntimeError('We really do need scene...')
+        self._scene = scene
 
    
     def triangulateGL(self):
@@ -197,6 +202,7 @@ class PolySurface(Shape):
         for (i,material) in enumerate(self._materials):
             matName = 'material%02d' % i
             samplerCount += material.pushToShader(matName, self._shader, samplerCount)
+        self._scene.pushLightsToShader(self._shader)
 
         # bind our VAO and draw it
         GL.glBindVertexArray(self.vertexArray)
@@ -248,11 +254,12 @@ flat in float fragMaterialId;
 layout (location = 0) out vec4 FragColor;
 
 '''
+        code += self._scene.fragmentShaderLights()
         code += dgm.Material.getShaderStruct()
         for (i,material) in enumerate(self._materials):
             matName = 'material%02d' % i
             code += material.fragmentShaderDefinitions(matName)
-            code += material.fragmentShaderShading(matName)
+            code += material.fragmentShaderShading(matName, self._scene)
 
         #code += '''
         #void main() {
@@ -261,17 +268,15 @@ layout (location = 0) out vec4 FragColor;
         #'''
         #return code
 
+
         code += '''
 
 void main() {
-    vec3 lightPosition = vec3(2.0f,3.0f,4.0f);
-    vec3 ligthColor = vec3(2.0f);
-
+    
     vec3 normal = normalize(fragNormal);
     vec3 viewerPos = (inverse(viewMatrix) * vec4(0, 0, 0, 1)).xyz;
 
     vec3 outDirection = normalize(viewerPos - fragPosition.xyz);
-    vec3 inDirection = normalize(lightPosition - fragPosition.xyz);   
 
     vec3 color = vec3(0);
 '''
@@ -279,11 +284,10 @@ void main() {
             matName = 'material%02d' % i
             code += '''
     if (int(fragMaterialId + 0.5) == {materialId}) {{
-        color += {name}_shading(inDirection, outDirection, normal, fragTexCoord);
+        color += {name}_shading(fragPosition.xyz, outDirection, normal, fragTexCoord);
     }}
             '''.format(name = matName, materialId = i)
         code += '''
-    color *= ligthColor;
     
     FragColor.rgb = color;
     //FragColor.rgb = normal;
@@ -292,6 +296,7 @@ void main() {
     //FragColor.rgb = vec3(0);
     //FragColor.rg = fragTexCoord;//material00.diffuseColor;
 }'''        
+        print(code);
         return code;
 
     def compileShader(self):

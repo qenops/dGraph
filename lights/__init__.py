@@ -15,71 +15,77 @@ __version__ = '1.6'
 __all__ = ["Light", "PointLight", "DirectionLight"]
 
 from dGraph import *
+import dGraph.shaders as dgshdr
 import numpy as np
 from numpy.linalg import norm
 
-class Light(WorldObject):
+class Light(object):
     ''' A world object that casts light 
         Intensity
         Color
-    '''
-    _lightList = {}                                         # store all existing lights here
-    def __new__(cls, name, *args, **kwargs):                # use for creating new materials - keeps track of all existing materials
-        if name in cls._lightList.keys():
-            if not isinstance(cls._lightList[name],cls):    # do some type checking to prevent mixed results 
-                raise TypeError('Light of name "%s" already exists and is type: %s'%(name, type(cls._lightList[name])))
-        else:
-            cls._lightList[name] = super(Light, cls).__new__(cls, name, *args, **kwargs)
-        return cls._lightList[name]
-    @classmethod
-    def allLights(cls):
-        return cls._lightList
-    def __init__(self, name, parent, color=(1,1,1), intensity=1, **kwargs):      
-        super(Light, self).__init__(name, parent)
-        self._color = np.array(color)
-        self._intensity = intensity
-    @property
-    def name(self):
-        return self.name
-    def illumination(self, distance):
-        return self._color*self._intensity
-    def shaderStruct(self):
-        return '''
-struct Light {
-    vec3 color;
-    vec3 position;
-};
-'''
+    '''    
+    def __init__(self, intensity=(1,1,1), **kwargs):      
+        super(Light, self).__init__(**kwargs)
+        self._intensity = np.array(intensity, np.float32)
+
+    def fragmentShader(self, index):
+        pass
+
+    def pushToShader(self, index, shader):
+        pass
+ 
 
 class PointLight(Light):
     ''' A light with falloff '''
-    def __init__(self, name, parent, falloff=0, **kwargs):      
-        super(PointLight, self).__init__(name, parent)
-        self._falloff = falloff
-    def illumination(self, distance):
-        ''' need to add calculation for falloff - inverse square law or something equiv '''
-        return self._color*self._intensity
-    def shaderStruct(self):
+    def __init__(self, position = (0,0,0), **kwargs):      
+        super(PointLight, self).__init__(**kwargs)
+        self._position = np.array(position, np.float32)
+
+    def fragmentShader(self, index):
         return '''
-struct Light {
-    vec3 color;
-    vec3 position;
-    float falloff;
-};
-'''
+uniform vec3 light{index}_intensity;
+uniform vec3 light{index}_position;
+
+vec3 getLightDirection{index}(vec3 worldLocation) {{
+    return normalize(light{index}_position - worldLocation);
+}}
+
+vec3 getLightIntensity{index}(vec3 worldLocation) {{
+    return light{index}_intensity;
+}}
+
+'''.format(index = index)
+
+    def pushToShader(self, index, shader):
+        #import pdb; pdb.set_trace();
+        dgshdr.setUniform(shader, 'light{index}_intensity'.format(index=index), np.array(self._intensity, np.float32))
+        dgshdr.setUniform(shader, 'light{index}_position'.format(index=index), np.array(self._position, np.float32))
+
+        
 
 class DirectionLight(Light):
     ''' A light where position doesn't matter, only a direction vector '''
-    def __init__(self, name, parent, direction=(1.,0.,0.), **kwargs):      
-        super(PointLight, self).__init__(name, parent)
-        self._direction = np.array(direction)
-    @property
-    def direction(self):
-        return self._direction/norm(self._direction)
-    def shaderStruct(self):
+    def __init__(self, direction=(0.,0.,1.0), **kwargs):      
+        super(DirectionLight, self).__init__(**kwargs)
+        self._direction = np.array(direction, np.float32)
+
+    def fragmentShader(self, index):
         return '''
-struct Light {
-    vec3 color;
-    vec3 direction;
-};
-'''
+uniform vec3 light{index}_intensity;
+uniform vec3 light{index}_direction;
+
+vec3 getLightDirection{index}(vec3 worldLocation) {{
+    return normalize(light{index}_direction);
+}}
+
+vec3 getLightIntensity{index}(vec3 worldLocation) {{
+    return light{index}_intensity;
+}}
+
+
+'''.format(index = index)
+
+    def pushToShader(self, index, shader):
+        #import pdb; pdb.set_trace();
+        dgshdr.setUniform(shader, 'light{index}_intensity'.format(index=index), np.array(self._intensity, np.float32))
+        dgshdr.setUniform(shader, 'light{index}_direction'.format(index=index), np.array(self._direction, np.float32))

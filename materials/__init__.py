@@ -24,6 +24,7 @@ from numpy import dot, vdot
 import dGraph as dg
 import dGraph.config as config
 import dGraph.textures as dgt
+import dGraph.shaders as dgshdr
 #import cv2
 
 
@@ -63,10 +64,10 @@ struct Material {
         code += "\n\n";
         return code
 
-    def fragmentShaderShading(self, name):
+    def fragmentShaderShading(self, name, scene):
         code = """
 vec3 {name}_shading(
-	const vec3 inDirection, 
+	const vec3 position, 
 	const vec3 outDirection,
 	const vec3 normal,
 	const vec2 texCoord)
@@ -76,17 +77,33 @@ vec3 {name}_shading(
         else:
             code += '\n vec3 diffuseTexSample = vec3(1);\n'
         code += """
-    vec3 ambientLevel = vec3(0.1); // This should be light property
 	vec3 diffuse = {name}.diffuseColor * diffuseTexSample;
 	vec3 specularity = {name}.specularColor;
 	float glossiness = 10 * {name}.glossiness;
 
-    vec3 diffShade = diffuse * (ambientLevel + max(0, dot(inDirection, normal)));
-    vec3 specShade = specularity * pow(max(0, dot(outDirection, -reflect(inDirection, normal))), glossiness);
+    vec3 result = vec3(0);
+    result += ambientLight * diffuse;
+
+    vec3 diffShade;
+    vec3 specShade;
+    vec3 inDirection;
+    vec3 inLight;
+"""
+        # light loop
+        for i,light in enumerate(scene.lights):
+            code += """
+    inDirection = getLightDirection{index}(position);
+    inLight = getLightIntensity{index}(position);
+
+    diffShade = inLight * diffuse * (max(0, dot(inDirection, normal)));
+    specShade = inLight * specularity * pow(max(0, dot(outDirection, -reflect(inDirection, normal))), glossiness);
+    
+	result += diffShade + specShade;
+            """.format(index = i)
 
 
-	return diffShade + specShade;
-		
+        code += """
+	return result;	
 }}
 
 
@@ -96,9 +113,9 @@ vec3 {name}_shading(
 
     def pushToShader(self, name, shader, textureIndex):
         #import pdb; pdb.set_trace();
-        shaders.uniform(shader, '{name}.diffuseColor'.format(name=name), np.array(self.diffuseColor, np.float32))
-        shaders.uniform(shader, '{name}.specularColor'.format(name=name), np.array(self.specularColor, np.float32))
-        shaders.uniform(shader, '{name}.glossiness'.format(name=name), float(self.glossiness))
+        dgshdr.setUniform(shader, '{name}.diffuseColor'.format(name=name), np.array(self.diffuseColor, np.float32))
+        dgshdr.setUniform(shader, '{name}.specularColor'.format(name=name), np.array(self.specularColor, np.float32))
+        dgshdr.setUniform(shader, '{name}.glossiness'.format(name=name), float(self.glossiness))
         if self.diffuseTexture:
             dgt.attachTextureNamed(self.diffuseTexture, shader, textureIndex, '{name}_diffuse'.format(name = name))
             textureIndex += 1
