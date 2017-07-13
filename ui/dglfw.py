@@ -37,8 +37,8 @@ def key_callback(window, key, scancode, action,  mods):
         function(window, *args, **kwargs)
 
 class Joystick(int):
-    def __init__(self, *args, **kwargs):
-        super(Joystick,self).__init__(*args, **kwargs)
+    def __init__(self, value):
+        super().__init__()
         self.leftTrigger = False
         self.rightTrigger = False
         self.A = False
@@ -63,6 +63,7 @@ def find_joysticks():
 
 def get_joy_axes(joy):
     axes = glfw.get_joystick_axes(joy)
+    print(axes)
     toReturn = [0.]*axes[1]
     for i in range(axes[1]):
         toReturn[i] = axes[0][i]
@@ -70,6 +71,7 @@ def get_joy_axes(joy):
 
 def get_joy_buttons(joy):
     buttons = glfw.get_joystick_buttons(joy)
+    print(buttons)
     toReturn = [0.]*buttons[1]
     for i in range(buttons[1]):
         toReturn[i] = buttons[0][i]

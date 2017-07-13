@@ -82,7 +82,7 @@ class SceneGraph(dict):
         pass
     def render(self):
         for rg in self.renderGraphs:
-            self[rg].render(0)
+            self[rg].render()
 
     def fragmentShaderLights(self):
         code = "\n";

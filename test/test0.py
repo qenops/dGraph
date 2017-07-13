@@ -23,6 +23,7 @@ import dGraph.ui as dgui
 import dGraph.render as dgr
 import dGraph.cameras as dgc
 import dGraph.shapes as dgs
+import dGraph.lights as dgl
 import dGraph.materials as dgm
 import dGraph.config as config
 import dGraph.util.imageManip as im
@@ -42,12 +43,16 @@ def loadScene(renderGraph):
     teapot.setScale(.4,.4,.4)
     teapot.setTranslate(0.,-.20,-1.)
     teapot.setRotate(0.,0.,0.)
-
+    # Materials
     material1 = scene.add(dgm.Material('material1'))
     material1.diffuseColor *= 0.4
     for obj in scene.shapes:
         scene[obj].setMaterial(material1)
-
+    # Lights
+    scene.ambientLight = np.array([1,1,1], np.float32) * 0.2
+    scene.lights.append(dgl.PointLight(intensity = (0,1,1), position = (2,3,4)))
+    scene.lights.append(dgl.DirectionLight(intensity = (1,0,1), direction = (-1,0.5,0.1)))
+    # Render
     renderGraph.frameBuffer.connectInput(cam)
     scene.add(renderGraph)
     return scene
@@ -83,9 +88,10 @@ def arrowKey(window,scene,direction):
         print(scene['teapot'].rotate)
 
 def setup():
-    renderGraph = dgr.RenderGraph('Test0_RG')
-    display = renderGraph.add(dgui.Display('Fake Display',resolution=(800,600)))
     dgui.init()
+    renderGraph = dgr.RenderGraph('Test0_RG')
+    monitors = dgui.get_monitors()
+    display = renderGraph.add(dgui.Display('Last',monitors[-1]))
     offset = (0,0)
     mainWindow = renderGraph.add(dgui.open_window('Scene Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:

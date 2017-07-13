@@ -96,10 +96,11 @@ def arrowKey(window,renderGraph,direction):
         pass
 
 def setup():
-    renderGraph = dgr.RenderGraph('Test2_RG')
-    display = renderGraph.add(dgui.Display('Fake Display',resolution=(1920,1200),size=(.518,.324)))
     dgui.init()
-    offset = (-1920,0)
+    renderGraph = dgr.RenderGraph('TestMTL_RG')
+    monitors = dgui.get_monitors()
+    display = renderGraph.add(dgui.Display('Last',monitors[-1]))
+    offset = (0,0)
     mainWindow = renderGraph.add(dgui.open_window('Render Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:
         dgui.terminate()
