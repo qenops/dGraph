@@ -133,7 +133,6 @@ vec3 {name}_shading(
 
         code += """
     return result;
-	return abs(determinant(tbnMatrix));	
 }}
 
 

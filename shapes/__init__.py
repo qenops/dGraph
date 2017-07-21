@@ -132,7 +132,9 @@ class PolySurface(Shape):
                 deltaUV1 = uv1-uv0;
                 deltaUV2 = uv2-uv0;
 
-                r = 1.0 / (deltaUV1[0] * deltaUV2[1] - deltaUV1[1] * deltaUV2[0]);
+                denom = (deltaUV1[0] * deltaUV2[1] - deltaUV1[1] * deltaUV2[0])
+                denom = max(denom, 1e-5) if denom >= 0 else min(denom, -1e-5)
+                r = 1.0 / denom;
                 tangent = (deltaPos1 * deltaUV2[1]   - deltaPos2 * deltaUV1[1])*r;
                 bitangent = (deltaPos2 * deltaUV1[0]   - deltaPos1 * deltaUV2[0])*r;
                 
@@ -173,7 +175,7 @@ class PolySurface(Shape):
         bitangentsGL = np.zeros((0),dtype=np.float32) if len(self._bitangents.A1) < 3 else self._bitangents[(fullVerts/(maxSize**2)%maxSize).astype(fullVerts.dtype)].getA1()
         matIdsGL = np.zeros((0),dtype=np.float32) if len(self._materialIds.A1) < 1 else (fullVerts/(maxSize**3)).astype(np.float32)
             
-        #import pdb;pdb.set_trace()
+        
         return np.concatenate((vertsGL,uvsGL,normsGL,tangentsGL,bitangentsGL,matIdsGL)), \
                 faces.astype(np.uint32), \
                 [len(vertsGL),len(uvsGL),len(normsGL),len(tangentsGL),len(bitangentsGL),len(matIdsGL)]

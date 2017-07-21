@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{8ef01922-aa85-41f5-8af3-2f496f49e70e}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>test\testMtl.py</StartupFile>
+    <StartupFile>test\testAlien.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -38,6 +38,7 @@
     <Compile Include="shapes\__init__.py" />
     <Compile Include="test\test0.py" />
     <Compile Include="test\test1.py" />
+    <Compile Include="test\testAlien.py" />
     <Compile Include="test\testMtl.py" />
     <Compile Include="test\testDoF.py" />
     <Compile Include="test\test2.py" />

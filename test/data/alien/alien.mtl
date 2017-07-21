@@ -1,0 +1,26 @@
+newmtl blinn3SG
+illum 4
+Kd 1.00 1.00 1.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd alien_lo_bodymat_AlbedoTransparency.png
+bump alien_lo_bodymat_Normal.png -bm 5
+Ni 1.00
+Ks 1.00 1.00 1.00
+map_Ks alien_lo_bodymat_SpecularSmoothness.png
+newmtl corneaShaderSG
+illum 4
+Kd 0.91 0.99 1.00
+Ka 0.00 0.00 0.00
+Tf 0.02 0.02 0.02
+Ni 1.00
+Ks 1.00 1.00 1.00
+Ns 98.00
+newmtl teethUpper_loSG
+illum 4
+Kd 0.80 0.80 0.80
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.25 0.25 0.25
+Ns 7.61

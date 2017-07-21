@@ -151,11 +151,18 @@ def load(file, normalize=False, loadMaterials = True):
                     if len(v) > 2 and v[2] != '':
                         normList.append(int(v[2])-1)
                 #faces.append({'verts':vertList,'uvs':uvList,'normals':normList})
-                faceVerts.append(vertList)
-                faceUvs.append(uvList) 
-                faceNormals.append(normList)
-                if loadMaterials:
-                    materialIds.append(currentMaterialId)
+                vertList = triangulate(vertList)
+                uvList = triangulate(uvList)
+                normList = triangulate(normList)
+
+                for tri in vertList:
+                    faceVerts.append(tri)
+                    if loadMaterials:
+                        materialIds.append(currentMaterialId)
+                for tri in uvList:
+                    faceUvs.append(tri)
+                for tri in normList:
+                    faceNormals.append(tri)
             elif tokens[0] == 'curv':  # a curve
                 pass
             elif tokens[0] == 'curv2': # a surface curve
@@ -167,8 +174,11 @@ def load(file, normalize=False, loadMaterials = True):
     materialIds = np.matrix(materialIds,dtype=np.uint64) if materialIds else np.matrix([])
         
     faceSizes = [x for x in map(len, faceVerts)]
-    if max(faceSizes) == min(faceSizes):    # convert to matrix since all faces are same size
-        faceVerts, faceUvs, faceNormals = [np.matrix(a,dtype=np.uint32) if a != [] else np.matrix([]) for a in [faceVerts, faceUvs, faceNormals]]
+    if not max(faceSizes) == min(faceSizes) or not max(faceSizes) == 3:    
+        raise RuntimeError('Hey! We only support triangles here buddy!')
+
+    # convert to matrix since all faces are same size
+    faceVerts, faceUvs, faceNormals = [np.matrix(a,dtype=np.uint32) if a != [] else np.matrix([]) for a in [faceVerts, faceUvs, faceNormals]]
     #else:                                   # convert to single array???? - this seems stupid
     #    faceVerts, faceUvs, faceNormals = [np.array([i for sub in a for i in sub],dtype=np.uint32) if a != [] else [] for a in [faceVerts, faceUvs, faceNormals]]
     print("Loaded mesh from %s. (%d vertices, %d uvs, %d normals, %d faces)"%(file, len(verts), len(uvs), len(normals), len(faceVerts)))
@@ -184,6 +194,11 @@ def load(file, normalize=False, loadMaterials = True):
 
     return verts, uvs, normals, faceVerts, faceUvs, faceNormals, faceSizes, materialIds, materials
 
+def triangulate(idList):
+    tris = []
+    for i in range(2, len(idList)):
+        tris.append([idList[0], idList[i - 1], idList[i]])
+    return tris
 
 def loadMtl(file):
     materials = dict()
@@ -225,7 +240,7 @@ def loadMtl(file):
                 if not os.path.isfile(imgFile):
                     imgFile = os.path.join(os.path.dirname(file), imgFile)
                     material.specularTexture = loadTexture(imgFile)
-            elif tokens[0] == 'map_Bump': # Normal texture (XYZ).
+            elif tokens[0] == 'map_Bump' or tokens[0] == 'bump': # Normal texture (XYZ).
                 imgFile = tokens[1]
                 if not os.path.isfile(imgFile):
                     imgFile = os.path.join(os.path.dirname(file), imgFile)
