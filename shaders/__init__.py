@@ -23,7 +23,7 @@ import ctypes, math, os
 import dGraph.textures as dgt
 import dGraph.config as config
 import cv2
-
+import sys
 
 def setUniform(shader, name, value):
     ''' Sets up uniform (not sampler, just like float and stuff) '''
@@ -340,10 +340,15 @@ void main() {
 
 class Image(Warp):
     ''' A shader displaying the indicated image '''
-    def __init__(self, name, imageFile, **kwargs):
+    def __init__(self, name, imageFile=None, imageData=None, **kwargs):
+        if imageFile is None and imageData is None:
+            raise ValueError('DGSHADER: Image(Warp) Error: Either imageFile or imageData must be supplied.')
         super().__init__(name, **kwargs)
-        self._imageFile = imageFile
-        self._internalTextureData['texRGBA'] = dgt.loadImage(self._imageFile)   # load our LUT file
+        if imageFile is not None:
+            self._imageFile = imageFile
+            self._internalTextureData['texRGBA'] = dgt.loadImage(self._imageFile)   # load our LUT file
+        else:
+            self._internalTextureData['texRGBA'] = imageData
         self._fragmentShader = '''
 in vec2 fragTexCoord;
 uniform sampler2D texRGBA; // texRGBA
@@ -354,6 +359,8 @@ void main() {
     FragColor = texture2D( texRGBA, fragTexCoord );
 };
 '''
+
+
 
 
 class GaussMIPMap(Warp):

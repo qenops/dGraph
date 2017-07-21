@@ -30,7 +30,8 @@ class Display(object):
         self.name = name
         self.classifier = 'display'
         self.resolution, self.colorDepth, self.fps = [np.array(a) for a in fw.get_video_mode(monitor)]
-        print(self.resolution,self.colorDepth, self.fps)
+        self.glResolution = np.flipud(self.resolution)
+        #print(self.resolution,self.colorDepth, self.fps)
         self.fps = 60 if self.fps == 59 else 30 if self.fps == 29 else self.fps  # fix rounding down errors
         self.size = np.array(fw.get_monitor_physical_size(monitor))/1000.
         self.screenPosition = np.array(fw.get_monitor_pos(monitor))
