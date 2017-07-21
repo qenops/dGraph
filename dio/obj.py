@@ -220,6 +220,16 @@ def loadMtl(file):
                 if not os.path.isfile(imgFile):
                     imgFile = os.path.join(os.path.dirname(file), imgFile)
                     material.diffuseTexture = loadTexture(imgFile)
+            elif tokens[0] == 'map_Ks': # Specular texture.
+                imgFile = tokens[1]
+                if not os.path.isfile(imgFile):
+                    imgFile = os.path.join(os.path.dirname(file), imgFile)
+                    material.specularTexture = loadTexture(imgFile)
+            elif tokens[0] == 'map_Bump': # Normal texture (XYZ).
+                imgFile = tokens[1]
+                if not os.path.isfile(imgFile):
+                    imgFile = os.path.join(os.path.dirname(file), imgFile)
+                    material.bumpTexture = loadTexture(imgFile)
                 
     return materials
 

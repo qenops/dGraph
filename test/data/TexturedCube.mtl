@@ -2,15 +2,17 @@
 # Material Count: 2
 
 newmtl Material
-Ns 96.078431
+Ns 52.941176
 Ka 1.000000 1.000000 1.000000
 Kd 0.640000 0.640000 0.640000
-Ks 0.000000 0.000000 0.000000
+Ks 0.736842 0.736842 0.736842
 Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
-illum 1
-map_Kd Brick_07_UV_H_CM_1.jpg
+illum 2
+map_Bump masonry-wall-normal-map.jpg
+map_Kd masonry-wall-texture.jpg
+map_Ks checkerboard.o.jpg
 
 newmtl Material.001
 Ns 96.078431

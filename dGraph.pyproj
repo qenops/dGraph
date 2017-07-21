@@ -30,7 +30,6 @@
     <Compile Include="dio\__init__.py" />
     <Compile Include="kdtree.py" />
     <Compile Include="lights\__init__.py" />
-    <Compile Include="materials\warp.py" />
     <Compile Include="materials\__init__.py" />
     <Compile Include="ray.py" />
     <Compile Include="render\__init__.py" />

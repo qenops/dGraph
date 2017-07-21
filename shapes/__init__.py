@@ -88,6 +88,9 @@ class PolySurface(Shape):
         self._VBOdone = False
         self._shader = None
 
+        self._tangents = np.matrix([])
+        self._bitangents = np.matrix([])
+
         if len(self._materials) == 0:
             # Add default material
             material = dgm.Material('default')
@@ -103,28 +106,77 @@ class PolySurface(Shape):
 
    
     def triangulateGL(self):
+        ''' Compute tangents and bitangents'''
+        # http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-13-normal-mapping/
+        if len(self._faceUvs.A1) > 0:
+            self._tangents = np.zeros(self._normals.shape, self._normals.dtype)
+            self._bitangents = np.zeros(self._normals.shape, self._normals.dtype)
+
+            for triIndex in range(self._faceVerts.shape[0]):
+
+                # Shortcuts for vertices
+                v0 = self._verts[self._faceVerts[triIndex,0]].A1;
+                v1 = self._verts[self._faceVerts[triIndex,1]].A1;
+                v2 = self._verts[self._faceVerts[triIndex,2]].A1;
+
+                # Shortcuts for UVs
+                uv0 = self._uvs[self._faceUvs[triIndex,0]].A1;
+                uv1 = self._uvs[self._faceUvs[triIndex,1]].A1;
+                uv2 = self._uvs[self._faceUvs[triIndex,2]].A1;
+
+                # Edges of the triangle : postion delta
+                deltaPos1 = v1-v0;
+                deltaPos2 = v2-v0;
+
+                # UV delta
+                deltaUV1 = uv1-uv0;
+                deltaUV2 = uv2-uv0;
+
+                r = 1.0 / (deltaUV1[0] * deltaUV2[1] - deltaUV1[1] * deltaUV2[0]);
+                tangent = (deltaPos1 * deltaUV2[1]   - deltaPos2 * deltaUV1[1])*r;
+                bitangent = (deltaPos2 * deltaUV1[0]   - deltaPos1 * deltaUV2[0])*r;
+                
+                for i in range(3):
+                    self._tangents[self._faceNormals[triIndex,i]] += tangent 
+                    self._bitangents[self._faceNormals[triIndex,i]] += bitangent
+
+            for i in range(len(self._tangents)):
+                self._tangents[i] /= np.linalg.norm(self._tangents[i], 2)
+                self._bitangents[i] /= np.linalg.norm(self._bitangents[i], 2)
+
+                # orthogonalize
+                self._tangents[i] = (self._tangents[i] - np.dot(self._tangents[i], self._normals[i].A1) * self._normals[i].A1);
+                self._bitangents[i] = np.cross(self._normals[i].A1, self._tangents[i]);
+
+            self._tangents = np.matrix(self._tangents)
+            self._bitangents = np.matrix(self._bitangents)
+          
+
         ''' Generate openGL triangle lists in VVVVVTTTTTNNNNN form
         Don't need to worry about world matrix - we will do that via model matrix '''
-        # TODO something if max faceSizes is greater than 3
-        if max(self._faceSizes) == 3:
-            # Combine all the positions, normals, and uvs into one array, then remove duplicates - that is our vertex buffer
-            maxSize = 2**16                                             # numpy uint64 is 64 bits spread over 3 attributes is 21 bits 2**21/3 is max number of faces
-            fuvs = np.zeros_like(self._faceVerts, dtype=np.uint64) if len(self._uvs.A1) < 3 else self._faceUvs.astype(np.uint64)
-            fnorms = np.zeros_like(self._faceVerts, dtype=np.uint64) if len(self._normals.A1) < 3 else self._faceNormals.astype(np.uint64)
-            fmatIds = np.zeros_like(self._faceVerts, dtype=np.uint64) 
-            if len(self._materialIds.A1) >= 1: 
-                fmatIds = np.resize(self._materialIds.A1, [3,len(self._materialIds.A1)]).transpose().astype(np.uint64) # expand to triangles
+        # Combine all the positions, normals, and uvs into one array, then remove duplicates - that is our vertex buffer
+        maxSize = 2**16                                             # numpy uint64 is 64 bits spread over 3 attributes is 21 bits 2**21/3 is max number of faces
+        fuvs = np.zeros_like(self._faceVerts, dtype=np.uint64) if len(self._uvs.A1) < 3 else self._faceUvs.astype(np.uint64)
+        fnorms = np.zeros_like(self._faceVerts, dtype=np.uint64) if len(self._normals.A1) < 3 else self._faceNormals.astype(np.uint64)
+        fmatIds = np.zeros_like(self._faceVerts, dtype=np.uint64) 
+        if len(self._materialIds.A1) >= 1: 
+            fmatIds = np.resize(self._materialIds.A1, [3,len(self._materialIds.A1)]).transpose().astype(np.uint64) # expand to triangles
 
-            f = np.array(self._faceVerts.astype(np.uint64)+(maxSize*fuvs).astype(np.uint64)+((maxSize**2)*fnorms).astype(np.uint64)+((maxSize**3)*fmatIds).astype(np.uint64)).ravel()
-            fullVerts, faces = np.unique(f, return_inverse=True)        # get the unique indices and the reconstruction(our element array)
+        f = np.array(self._faceVerts.astype(np.uint64)+(maxSize*fuvs).astype(np.uint64)+((maxSize**2)*fnorms).astype(np.uint64)+((maxSize**3)*fmatIds).astype(np.uint64)).ravel()
+        fullVerts, faces = np.unique(f, return_inverse=True)        # get the unique indices and the reconstruction(our element array)
 
-            # Build our actual vertex array by getting the positions, normals and uvs from our unique indicies
-            vertsGL = self._verts[fullVerts%maxSize].getA1()
-            uvsGL = np.zeros((0),dtype=np.float32) if len(self._uvs.A1) < 3 else self._uvs[((fullVerts/maxSize)%maxSize).astype(fullVerts.dtype)].getA1()
-            normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[(fullVerts/(maxSize**2)%maxSize).astype(fullVerts.dtype)].getA1()
-            matIdsGL = np.zeros((0),dtype=np.float32) if len(self._materialIds.A1) < 1 else (fullVerts/(maxSize**3)).astype(np.float32)
+        # Build our actual vertex array by getting the positions, normals and uvs from our unique indicies
+        vertsGL = self._verts[fullVerts%maxSize].getA1()
+        uvsGL = np.zeros((0),dtype=np.float32) if len(self._uvs.A1) < 3 else self._uvs[((fullVerts/maxSize)%maxSize).astype(fullVerts.dtype)].getA1()
+        normsGL = np.zeros((0),dtype=np.float32) if len(self._normals.A1) < 3 else self._normals[(fullVerts/(maxSize**2)%maxSize).astype(fullVerts.dtype)].getA1()
+        tangentsGL = np.zeros((0),dtype=np.float32) if len(self._tangents.A1) < 3 else self._tangents[(fullVerts/(maxSize**2)%maxSize).astype(fullVerts.dtype)].getA1() 
+        bitangentsGL = np.zeros((0),dtype=np.float32) if len(self._bitangents.A1) < 3 else self._bitangents[(fullVerts/(maxSize**2)%maxSize).astype(fullVerts.dtype)].getA1()
+        matIdsGL = np.zeros((0),dtype=np.float32) if len(self._materialIds.A1) < 1 else (fullVerts/(maxSize**3)).astype(np.float32)
             
-            return np.concatenate((vertsGL,uvsGL,normsGL,matIdsGL)), faces.astype(np.uint32), [len(vertsGL),len(uvsGL),len(normsGL),len(matIdsGL)]
+        #import pdb;pdb.set_trace()
+        return np.concatenate((vertsGL,uvsGL,normsGL,tangentsGL,bitangentsGL,matIdsGL)), \
+                faces.astype(np.uint32), \
+                [len(vertsGL),len(uvsGL),len(normsGL),len(tangentsGL),len(bitangentsGL),len(matIdsGL)]
 
     def generateVBO(self):
         ''' generates OpenGL VBO and VAO objects '''
@@ -149,6 +201,8 @@ class PolySurface(Shape):
         shader_pos = GL.glGetAttribLocation(self._shader, 'position')
         shader_uvs = GL.glGetAttribLocation(self._shader, 'texCoord')                              # will return -1 if attribute isn't supported in shader
         shader_norm = GL.glGetAttribLocation(self._shader, 'normal')                               # will return -1 if attribute isn't supported in shader
+        shader_tangent = GL.glGetAttribLocation(self._shader, 'tangent')                               # will return -1 if attribute isn't supported in shader
+        shader_bitangent = GL.glGetAttribLocation(self._shader, 'bitangent')                               # will return -1 if attribute isn't supported in shader
         shader_materialId = GL.glGetAttribLocation(self._shader, 'materialId')                               # will return -1 if attribute isn't supported in shader
         
         GL.glEnableVertexAttribArray(shader_pos)                                                            # Add a vertex position attribute
@@ -159,12 +213,20 @@ class PolySurface(Shape):
             GL.glVertexAttribPointer(shader_uvs, 2, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:1]))*facesGL[0].nbytes))
 
         if len(self._normals.A1) > 2 and shader_norm != -1:
-            GL.glEnableVertexAttribArray(shader_norm)                                                           # Add a vertex uv attribute
+            GL.glEnableVertexAttribArray(shader_norm)                                                           
             GL.glVertexAttribPointer(shader_norm, 3, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:2]))*facesGL[0].nbytes))
+
+        if len(self._tangents.A1) > 2 and shader_tangent != -1:
+            GL.glEnableVertexAttribArray(shader_tangent)                                                           
+            GL.glVertexAttribPointer(shader_tangent, 3, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:3]))*facesGL[0].nbytes))
+
+        if len(self._bitangents) > 2 and shader_bitangent != -1:
+            GL.glEnableVertexAttribArray(shader_bitangent)                                                           
+            GL.glVertexAttribPointer(shader_bitangent, 3, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:4]))*facesGL[0].nbytes))
 
         if len(self._materialIds.A1) > 2 and shader_materialId != -1:
             GL.glEnableVertexAttribArray(shader_materialId)                                                           # Add a vertex material attribute
-            GL.glVertexAttribPointer(shader_materialId, 1, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:3]))*facesGL[0].nbytes))
+            GL.glVertexAttribPointer(shader_materialId, 1, GL.GL_FLOAT, False, stride, ctypes.c_void_p(int(np.sum(lengths[:5]))*facesGL[0].nbytes))
         #import pdb;pdb.set_trace()
 
         # Create face element array
@@ -219,10 +281,14 @@ uniform mat4 projectionMatrix;
 
 in vec3 position;
 in vec3 normal;
+in vec3 tangent;
+in vec3 bitangent;
 in vec2 texCoord;
 in float materialId;
 
 out vec3 fragNormal;
+out vec3 fragTangent;
+out vec3 fragBitangent;
 out vec4 fragPosition;
 out vec2 fragTexCoord;
 flat out float fragMaterialId;
@@ -231,12 +297,22 @@ void main()
 {
     mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
     gl_Position = mvp * vec4(position, 1.0);
-    fragNormal = normalize(transpose(inverse(modelMatrix)) * vec4(normal,1)).xyz;
+
+    mat4 normalMatrix = transpose(inverse(viewMatrix * modelMatrix));
+    fragNormal = normalize(normalMatrix * vec4(normal, 0.0)).xyz;
+    fragTangent = normalize(normalMatrix * vec4(tangent, 0.0)).xyz;
+    fragBitangent = normalize(normalMatrix * vec4(bitangent, 0.0)).xyz;
+    if (length(tangent) <= 1e-3) {
+        fragTangent = vec3(0);
+        fragBitangent = vec3(0);
+    }
+
     fragPosition = viewMatrix * modelMatrix * vec4(position, 1.0);
     fragTexCoord = texCoord;
     fragMaterialId = materialId;
 }
             """
+
 
     @property
     def fragmentShader(self): 
@@ -246,6 +322,8 @@ void main()
 uniform mat4 viewMatrix;
 
 smooth in vec3 fragNormal;      // normal in camera space
+smooth in vec3 fragTangent;      // tangent in camera space
+smooth in vec3 fragBitangent;      // bitangent in camera space
 smooth in vec4 fragPosition;    // position in camera space
 smooth in vec2 fragTexCoord;
 flat in float fragMaterialId;
@@ -273,10 +351,20 @@ layout (location = 0) out vec4 FragColor;
 
 void main() {
     
-    vec3 normal = normalize(fragNormal);
     vec3 viewerPos = (inverse(viewMatrix) * vec4(0, 0, 0, 1)).xyz;
 
     vec3 outDirection = normalize(viewerPos - fragPosition.xyz);
+
+    vec3 N = normalize(fragNormal);
+    vec3 T = vec3(0);
+    vec3 B = vec3(0);
+    if (length(fragTangent) > 1e-3) {
+        T = normalize(fragTangent);
+        B = normalize(fragBitangent);
+
+        T = normalize(T - dot(T, N) * N);
+        B = cross(N, T);
+    }
 
     vec3 color = vec3(0);
 '''
@@ -284,13 +372,12 @@ void main() {
             matName = 'material%02d' % i
             code += '''
     if (int(fragMaterialId + 0.5) == {materialId}) {{
-        color += {name}_shading(fragPosition.xyz, outDirection, normal, fragTexCoord);
+        color += {name}_shading(fragPosition.xyz, outDirection, N, T, B, fragTexCoord);
     }}
             '''.format(name = matName, materialId = i)
         code += '''
     
     FragColor.rgb = color;
-    //FragColor.rgb = normal;
     FragColor.a = 1;
 
     //FragColor.rgb = vec3(0);

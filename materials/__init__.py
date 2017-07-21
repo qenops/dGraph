@@ -42,6 +42,8 @@ class Material(object):
         self.glossiness = 1.0
 
         self.diffuseTexture = None
+        self.specularTexture = None
+        self.bumpTexture = None
 
 
     @staticmethod
@@ -61,6 +63,10 @@ struct Material {
         code += "uniform Material {name};\n".format(name=name)
         if self.diffuseTexture:
             code += "uniform sampler2D {name}_diffuse;\n".format(name=name)
+        if self.specularTexture:
+            code += "uniform sampler2D {name}_specular;\n".format(name=name)
+        if self.bumpTexture:
+            code += "uniform sampler2D {name}_bump;\n".format(name=name)
         code += "\n\n";
         return code
 
@@ -68,18 +74,39 @@ struct Material {
         code = """
 vec3 {name}_shading(
 	const vec3 position, 
-	const vec3 outDirection,
-	const vec3 normal,
+	const vec3 outDirectionCS,
+	vec3 normal, vec3 tangent, vec3 bitangent,
 	const vec2 texCoord)
 {{"""
         if self.diffuseTexture:
             code += '\n vec3 diffuseTexSample = texture({name}_diffuse, texCoord).rgb;\n'
         else:
             code += '\n vec3 diffuseTexSample = vec3(1);\n'
+        if self.specularTexture:
+            code += '\n vec3 specularTexSample = texture({name}_specular, texCoord).rgb;\n'
+        else:
+            code += '\n vec3 specularTexSample = vec3(1);\n'
         code += """
 	vec3 diffuse = {name}.diffuseColor * diffuseTexSample;
-	vec3 specularity = {name}.specularColor;
-	float glossiness = 10 * {name}.glossiness;
+	vec3 specularity = {name}.specularColor * specularTexSample;
+	float glossiness = {name}.glossiness;
+
+    mat3 tbnMatrix = transpose(mat3(tangent, bitangent, normal));
+    vec3 normalTS = vec3(0, 0, 1); // Normal in Tangent-space
+"""
+        if self.bumpTexture:
+            code += 'vec3 bumpTexSample = texture({name}_bump, texCoord).rgb;\n'
+            code += 'normalTS = normalize(bumpTexSample * 2.0 - 1.0);\n' # this is just temporary (and wrong)
+
+        code += """
+
+    if (length(tangent) < 1e-3) {{
+        // no tangents defined! Legacy mode
+        normalTS = normal;
+        tbnMatrix = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1); 
+    }}
+
+    vec3 outDirection = tbnMatrix * outDirectionCS;
 
     vec3 result = vec3(0);
     result += ambientLight * diffuse;
@@ -95,15 +122,18 @@ vec3 {name}_shading(
     inDirection = getLightDirection{index}(position);
     inLight = getLightIntensity{index}(position);
 
-    diffShade = inLight * diffuse * (max(0, dot(inDirection, normal)));
-    specShade = inLight * specularity * pow(max(0, dot(outDirection, -reflect(inDirection, normal))), glossiness);
+    inDirection = tbnMatrix * inDirection;
+
+    diffShade = inLight * diffuse * (max(0, dot(inDirection, normalTS)));
+    specShade = inLight * specularity * pow(max(0, dot(outDirection, -reflect(inDirection, normalTS))), glossiness);
     
 	result += diffShade + specShade;
             """.format(index = i)
 
 
         code += """
-	return result;	
+    return result;
+	return abs(determinant(tbnMatrix));	
 }}
 
 
@@ -119,4 +149,11 @@ vec3 {name}_shading(
         if self.diffuseTexture:
             dgt.attachTextureNamed(self.diffuseTexture, shader, textureIndex, '{name}_diffuse'.format(name = name))
             textureIndex += 1
+        if self.specularTexture:
+            dgt.attachTextureNamed(self.specularTexture, shader, textureIndex, '{name}_specular'.format(name = name))
+            textureIndex += 1
+        if self.bumpTexture:
+            dgt.attachTextureNamed(self.bumpTexture, shader, textureIndex, '{name}_bump'.format(name = name))
+            textureIndex += 1
+
         return textureIndex

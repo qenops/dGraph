@@ -39,14 +39,20 @@ def loadScene(renderGraph,file=None):
     # Lights
     scene.ambientLight = np.array([1,1,1], np.float32) * 0.2
     scene.lights.append(dgl.PointLight(intensity = np.array([0,1,1], np.float32), position = np.array([2,3,4], np.float32)))
-    scene.lights.append(dgl.DirectionLight(intensity = np.array([1,0,1], np.float32), direction = np.array([-1,0.5,0.1], np.float32)))
+    scene.lights.append(dgl.DirectionLight(intensity = np.array([1,0,1], np.float32), direction = np.array([-1,0.2,1], np.float32)))
     
 
     # This guy has mtl and textures
     cube = scene.add(dgs.PolySurface('cube', scene, file = '%s/TexturedCube.obj'%MODELDIR))
     cube.setScale(.2,.2,.2)
-    cube.setTranslate(0.,0.,-2.)
+    cube.setTranslate(-0.1,0.,-2.)
     cube.setRotate(25.,25.+0*90,23.)
+
+    # This guy has mtl and textures
+    sphere = scene.add(dgs.PolySurface('sphere', scene, file = '%s/TexturedSphere.obj'%MODELDIR))
+    sphere.setScale(.2,.2,.2)
+    sphere.setTranslate(-.7,0.,-1.8)
+    sphere.setRotate(25.,25.+0*90,23.)
 
     # This will use default material
     teapot = scene.add(dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR))
@@ -55,7 +61,7 @@ def loadScene(renderGraph,file=None):
     teapot.setRotate(5.,0.,0.)
     teapot.material.diffuseColor = np.array([1.0, 1.0, 0.8]) * 0.5
     teapot.material.specularColor = np.array([1.0, 0.8, 0.7]) * 0.5
-    teapot.material.glossiness = 20
+    teapot.material.glossiness = 100
     
 
     # Tick
@@ -72,8 +78,8 @@ def loadScene(renderGraph,file=None):
 
 def animateScene(renderGraph, frame):
     # infinity rotate:
-    y = math.sin(frame*math.pi/60)
-    x = math.cos(frame*math.pi/30)/4
+    y = math.sin(frame*math.pi/60)*2
+    x = math.cos(frame*math.pi/30)/4*2
     for scene in renderGraph.scenes:
         for obj in renderGraph[scene].shapes:
             renderGraph[scene][obj].rotate += np.array((x,y,0.))
