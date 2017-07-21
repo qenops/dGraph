@@ -20,10 +20,7 @@ import math, os
 import numpy as np
 import dGraph as dg
 import dGraph.ui as dgui
-import dGraph.cameras as dgc
-import dGraph.shapes as dgs
 import dGraph.render as dgr
-import dGraph.materials as dgm
 import dGraph.shaders as dgshdr
 import dGraph.config as config
 import dGraph.util.imageManip as im
@@ -38,9 +35,10 @@ def loadScene(renderGraph):
     return True                                                         # Initialization Successful
 
 def setup():
-    renderGraph = dgr.RenderGraph('Test2_RG')
-    display = renderGraph.add(dgui.Display('Fake Display',resolution=(1920,1200),size=(.518,.324)))
     dgui.init()
+    renderGraph = dgr.RenderGraph('Test2_RG')
+    monitors = dgui.get_monitors()
+    display = renderGraph.add(dgui.Display('Last',monitors[-1]))
     offset = (0,0)
     mainWindow = renderGraph.add(dgui.open_window('Render Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:

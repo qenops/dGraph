@@ -17,6 +17,7 @@ __all__ = []
 
 from dGraph.ui import dglfw as fw
 from dGraph.ui.dglfw import *
+import numpy as np
 #from . import dglfw as fw
 #from .dglfw import *
 WINDOWSTACKS = {}       # Each window can have 1 associated renderGraph
@@ -25,13 +26,16 @@ WINDOWS = []
 # should look at glfw Monitor objects
 class Display(object):
     ''' A class that defines the physical properties of a display AKA a monitor'''
-    def __init__(self, name, resolution=(1080,1920), size=(.071,.126), bezel=((.005245,.005245),(.01,.01)),location=(0.,0.,0.)):  # default to Samsung Note 3
+    def __init__(self, name, monitor, bezel=None,location=(0.,0.,0.)):  # default to Samsung Note 3
         self.name = name
         self.classifier = 'display'
-        self.resolution = resolution
-        self.size = size
-        self.bezel = bezel
-        self.location = location  # the top left corner of the display (not the bezel)
+        self.resolution, self.colorDepth, self.fps = [np.array(a) for a in fw.get_video_mode(monitor)]
+        print(self.resolution,self.colorDepth, self.fps)
+        self.fps = 60 if self.fps == 59 else 30 if self.fps == 29 else self.fps  # fix rounding down errors
+        self.size = np.array(fw.get_monitor_physical_size(monitor))/1000.
+        self.screenPosition = np.array(fw.get_monitor_pos(monitor))
+        self.bezel = None if bezel is None else np.array(bezel)
+        self.location = None if location is None else np.array(location)  # the top left corner of the display (not the bezel)
     @property
     def width(self):
         return self.resolution[0]
@@ -39,7 +43,7 @@ class Display(object):
     def height(self):
         return self.resolution[1]
     def pixelSize(self):
-        return (self.size[0]/self.resolution[0], self.size[1]/self.resolution[1])
+        return self.size/self.resolution
 
 def resize_window_callback(window, w, h):
     ''' BROKEN - DON'T USE

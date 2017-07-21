@@ -1,0 +1,50 @@
+newmtl blinn3SG
+illum 4
+Kd 0.19 0.74 0.43
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+newmtl blinn4SG
+illum 4
+Kd 0.74 0.19 0.33
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+newmtl blinn5SG
+illum 4
+Kd 1.00 1.00 1.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+newmtl corneaShaderSG
+illum 4
+Kd 0.91 0.99 1.00
+Ka 0.00 0.00 0.00
+Tf 0.02 0.02 0.02
+Ni 1.00
+Ks 1.00 1.00 1.00
+Ns 98.00
+newmtl eyeballShaderSG
+illum 4
+Kd 0.76 0.72 0.66
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+newmtl irisShaderSG
+illum 4
+Kd 0.09 0.08 0.23
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+newmtl pupilShaderSG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.00 0.00 0.00
