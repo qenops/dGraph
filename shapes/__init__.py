@@ -385,7 +385,7 @@ void main() {
     //FragColor.rgb = vec3(0);
     //FragColor.rg = fragTexCoord;//material00.diffuseColor;
 }'''        
-        print(code);
+        #print(code);
         return code;
 
     def compileShader(self):

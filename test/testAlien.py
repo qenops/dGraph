@@ -91,7 +91,7 @@ def setup():
     dgui.init()
     renderGraph = dgr.RenderGraph('TestMTL_RG')
     monitors = dgui.get_monitors()
-    display = renderGraph.add(dgui.Display('Last',monitors[-1]))
+    display = renderGraph.add(dgui.Display('Last',monitors[0]))
     offset = display.screenPosition
     mainWindow = renderGraph.add(dgui.open_window('Render Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:
