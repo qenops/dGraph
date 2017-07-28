@@ -132,6 +132,7 @@ def drawText( value, x,y,  windowHeight, windowWidth, color=(1,1,1), font = GLUT
     # glPushMatrix()
     matrix = glGetDouble( GL_PROJECTION_MATRIX )
 
+    glDisable(GL_DEPTH_TEST)
     glLoadIdentity();
     glOrtho(0.0, windowHeight or 32, 0.0, windowWidth or 32, -1.0, 1.0)
     glMatrixMode(GL_MODELVIEW);

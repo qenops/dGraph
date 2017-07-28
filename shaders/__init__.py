@@ -113,7 +113,8 @@ void main() {
             samplerName = '%d'%len(self._textures)
         if samplerName in self._textures and not overwrite:
             raise ValueError('Texture with sampler name: %s already attached to shader %s.'%(samplerNname,self.name))
-        self._upstreamBuffers.add(textureFunction.__self__)
+        if callable(textureFunction):
+            self._upstreamBuffers.add(textureFunction.__self__)
         self._textures[samplerName] = textureFunction       # store the function, so we can call it later to get the texture after it is created
     def setup(self, width, height):
         ''' Setup our geometry and compile our shaders '''
@@ -128,7 +129,8 @@ void main() {
         for frameBuffer in self._upstreamBuffers:
             sceneGraphSet.update(frameBuffer.setup(width, height))
         for samplerName, textureFunction in self._textures.items():
-            self._textures[samplerName] = textureFunction()     # convert the functions to actual textures, since they exist now
+            if callable(textureFunction): # it may also be a real texture from HDD
+                self._textures[samplerName] = textureFunction()     # convert the functions to actual textures, since they exist now
         #for i in range(self._numWarp):
         #    levelCount = self.maxLevelCount # very wasteful ... but how do I know if the [input device] will produce mip maps? I need to call [smt].mipLevelCount but what is [smt]?
         #    tex, bufferData, depthMap = dgt.createWarp(self._width,self._height,levelCount=levelCount)
@@ -360,7 +362,32 @@ void main() {
 };
 '''
 
+class Stamp(Warp):
+    ''' A shader displaying the indicated image on a location '''
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
+        self.locationRel = np.array([0, 0], np.float)       
+        self.sizeRel = np.array([1, 1], np.float)       
+        self._fragmentShader = '''
+in vec2 fragTexCoord;
+uniform sampler2D background; 
+uniform sampler2D stamp;
+uniform vec2 locationRel;
+uniform vec2 sizeRel;
 
+layout (location = 0) out vec4 FragColor;
+
+void main() {
+    FragColor = texture2D( background, fragTexCoord );
+    vec2 stampTexCoord = (fragTexCoord - locationRel) / sizeRel;
+    if (all(greaterThanEqual(stampTexCoord, vec2(0))) && all(lessThan(stampTexCoord, vec2(1)))) {
+        FragColor = texture2D( stamp, stampTexCoord );
+    }
+};
+'''
+    def beforeRender(self):
+        setUniform(self.shader, 'locationRel', np.array(self.locationRel, np.float))
+        setUniform(self.shader, 'sizeRel', np.array(self.sizeRel, np.float))
 
 
 class GaussMIPMap(Warp):
