@@ -5,6 +5,12 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "dGraph", "dGraph.pyproj", "{8EF01922-AA85-41F5-8AF3-2F496F49E70E}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "dDisplay", "..\dDisplay\dDisplay.pyproj", "{C1CB67DD-EDEA-4804-9A9A-6276E4702241}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "dCamera", "..\dCamera\dCamera.pyproj", "{1373F048-C9F2-455F-95E6-F06F7F0E2D69}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "code", "..\..\code.pyproj", "{66E88F60-7D1F-4AF0-85E1-BEDEB1626549}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +19,12 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{8EF01922-AA85-41F5-8AF3-2F496F49E70E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8EF01922-AA85-41F5-8AF3-2F496F49E70E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1CB67DD-EDEA-4804-9A9A-6276E4702241}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1CB67DD-EDEA-4804-9A9A-6276E4702241}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1373F048-C9F2-455F-95E6-F06F7F0E2D69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1373F048-C9F2-455F-95E6-F06F7F0E2D69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{66E88F60-7D1F-4AF0-85E1-BEDEB1626549}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{66E88F60-7D1F-4AF0-85E1-BEDEB1626549}.Release|Any CPU.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

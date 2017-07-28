@@ -90,3 +90,4 @@ ENV/
 /.vs/dGraph/v14/.suo
 /test/data/*.blend1
 /test/data/alien.zip
+/test/data/alien/alien.zip

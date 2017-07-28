@@ -16,7 +16,7 @@ __all__ = ["Camera", "StereoCamera"]
 
 from dGraph import *
 import dGraph.xformMatrix as xm
-import dGraph.ui as ui
+import dGraph.render as dgr
 import OpenGL.GL as GL
 import random
 from math import floor, ceil
@@ -352,8 +352,12 @@ class StereoCamera(WorldObject):
         self.left.rotate.connectFunction(self.rotate,self.outRotateZ)
         self.right.rotate.connectFunction(self.rotate,self.outRotateZ)
         self._setupDone = True
-        self._lfRenderStack = ui.RenderStack([self.left])
-        self._rtRenderStack = ui.RenderStack([self.right])
+        '''
+        self._lfRenderGraph = dgr.RenderGraph('%s_Left_RG'%self.name)
+        self._lfRenderGraph.frameBuffer.connectInput(self.left)
+        self._rtRenderGraph = dgr.RenderGraph('%s_Right_RG'%self.name)
+        self._rtRenderGraph.frameBuffer.connectInput(self.right)
+        '''
         self._switch = switch
         self.left.translate.connectFunction(self.ipd,self.outLeftTranslate)
         self.right.translate.connectFunction(self.ipd,self.outRightTranslate)
@@ -391,27 +395,9 @@ class StereoCamera(WorldObject):
     @staticmethod
     def outRotateZ(rotation):
         return np.array((0.,0.,rotation[2]))
-    @property
-    def lfRenderStack(self):
-        return list(self._lfRenderStack)
-    @property
-    def rtRenderStack(self):
-        return list(self._rtRenderStack)
-    def leftStackAppend(self, value):
-        self._lfRenderStack.append(value)
-    def rightStackAppend(self, value):
-        self._rtRenderStack.append(value)
-    def stackAppend(self, value):
-        self.leftStackAppend(value)
-        self.rightStackAppend(value)
-    def stackSuspend(self):
-        self._lfRenderStackHold = self._lfRenderStack
-        self._rtRenderStackHold = self._rtRenderStack
-        self._lfRenderStack = [self.left]
-        self._rtRenderStack = [self.right]
-    def stackResume(self):
-        self._lfRenderStack = self._lfRenderStackHold
-        self._rtRenderStack = self._rtRenderStackHold
+    def setResolution(self, res):
+        self.left.setResolution((res[0]/2.0,res[1]))
+        self.right.setResolution((res[0]/2.0,res[1]))
     def __setattr__(self, attr, value):
         #print 'setting %s to %s'%(attr,value)
         if attr == 'ipd':
@@ -422,7 +408,7 @@ class StereoCamera(WorldObject):
             #self._converganceDepth.propigateDirty()
             # change the cameras in some manner (probably translating the film back)
         elif '_setupDone' not in self.__dict__ or attr in dir(self):            # If we are still setting up or attribute exists
-            super(StereoCamera, self).__setattr__(attr, value)
+            super().__setattr__(attr, value)
         else:                                                                   # Take a look at my cameras if attr doesn't exist
             setattr(self.left,attr,value)
             setattr(self.right,attr,value)
