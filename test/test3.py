@@ -19,10 +19,12 @@ import OpenGL.GL as GL
 import os
 import numpy as np
 import dGraph as dg
-import dGraph.ui as ui
+import dGraph.ui as dgui
+import dGraph.test as dgtest
 import dGraph.cameras as dgc
 import dGraph.shapes as dgs
 import dGraph.materials as dgm
+import dGraph.lights as dgl
 import dGraph.shaders as dgshdr
 import dGraph.config as config
 import dGraph.util.imageManip as im
@@ -30,47 +32,57 @@ import time
 
 MODELDIR = '%s/data'%os.path.dirname(__file__)
 
-def loadScene(renderStack,file=None):                
+def loadScene(renderGraph):                
     '''Load or create our sceneGraph'''
-    scene = dg.SceneGraph(file)
-    cam = dgc.Camera('cam', scene)
-    cam.setResolution((renderStack.width, renderStack.height))
+    scene = dg.SceneGraph('Test3_SG')
+    cam = scene.add(dgc.StereoCamera('cam', scene))
+    cam.setResolution((renderGraph.width, renderGraph.height))
     cam.setTranslate(0.,0.,0.)
     cam.setFOV(50.)
-    renderStack.cameras.append(cam)
-    teapot = dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR)
-    teapot.setScale(.035,.035,.035)
+    
+    teapot = scene.add(dgs.PolySurface('teapot', scene, file = '%s/teapot.obj'%MODELDIR))
+    teapot.setScale(.35,.35,.35)
     teapot.setTranslate(-.02,.02,-2.)
     teapot.setRotate(5.,-15.,0.)
-    renderStack.objects['teapot'] = teapot
 
-    material1 = dgm.Test('material1',ambient=(1,0,0), amb_coeff=0.2, diffuse=(1,1,1), diff_coeff=1)
-    for obj in renderStack.objects.values():
-        obj.setMaterial(material1)
+    material1 = scene.add(dgm.Material('material1'))
+    for obj in scene.shapes:
+        scene[obj].setMaterial(material1)
 
-    renderStack.append(cam)
+    scene.ambientLight = np.array([1,1,1], np.float32) * 0.2
+    scene.lights.append(dgl.PointLight(intensity = (0,1,1), position = (2,3,4)))
+    scene.lights.append(dgl.DirectionLight(intensity = (1,0,1), direction = (-1,0.5,0.1)))
+
+    renderGraph.frameBuffer.connectInput(cam.left, posWidth=0, posHeight=0, width=.5, height=1)
+    renderGraph.frameBuffer.connectInput(cam.right, posWidth=.5, posHeight=0, width=.5, height=1)
+    scene.add(renderGraph)
     #warp = dgm.warp.Lookup('lookup1',lutFile='%s/warp_0020.npy'%MODELDIR)
     #renderStack.append(warp)
     return scene
 
 def addInput(renderStack):
-    ui.add_key_callback(arrowKey, ui.KEY_RIGHT, renderStack=renderStack, direction=3)
-    ui.add_key_callback(arrowKey, ui.KEY_LEFT, renderStack=renderStack, direction=2)
-    ui.add_key_callback(arrowKey, ui.KEY_UP, renderStack=renderStack, direction=1)
-    ui.add_key_callback(arrowKey, ui.KEY_DOWN, renderStack=renderStack, direction=0)
+    dgui.add_key_callback(arrowKey, dgui.KEY_RIGHT, renderStack=renderStack, direction=3)
+    dgui.add_key_callback(arrowKey, dgui.KEY_LEFT, renderStack=renderStack, direction=2)
+    dgui.add_key_callback(arrowKey, dgui.KEY_UP, renderStack=renderStack, direction=1)
+    dgui.add_key_callback(arrowKey, dgui.KEY_DOWN, renderStack=renderStack, direction=0)
 
 def arrowKey(window,renderStack,direction):
+    rotate = np.array((0.,0.,0.))
+    translate = np.array((0.,0.,0.))
     if direction == 3:    # print "right"
-        renderStack.objects['teapot'].rotate += np.array((0.,5.,0.))
+        rotate += np.array((0.,5.,0.))
     elif direction == 2:    # print "left"
-        renderStack.objects['teapot'].rotate -= np.array((0.,5.,0.))
+        rotate -= np.array((0.,5.,0.))
     elif direction == 1:      # print 'up'
-        renderStack.objects['teapot'].translate += np.array((0.,.01,0.))
+        translate += np.array((0.,.01,0.))
     else:                   # print "down"
-        renderStack.objects['teapot'].translate -= np.array((0.,.01,0.))
-
+        translate -= np.array((0.,.01,0.))
+    for obj in scene.shapes:
+        scene[obj].rotate += rotate
+        scene[obj].translate += translate
+'''
 def drawScene(renderStack):
-    ''' Render the stack '''
+    ' '' Render the stack ' ''
     myStack = list(renderStack)                                     # copy the renderStack so we can pop and do it again next frame
     temp = myStack.pop()
     temp.render(renderStack.width, renderStack.height, myStack)     # Render our warp to screen
@@ -106,8 +118,10 @@ def runLoop(renderStack, mainWindow):
         #ui.wait_events()
     ui.terminate()
     exit(0)
+'''
 
 if __name__ == '__main__':
-    renderStack, scene, windows = setup()
-    addInput(renderStack)
-    runLoop(renderStack, windows[0])
+    scene, windows = dgtest.setup(loadScene)
+    addInput(scene)
+    print("Hit ESC key to quit.")
+    dgtest.runLoop(scene, windows[0])

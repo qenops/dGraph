@@ -16,6 +16,7 @@ __all__ = []
 
 import OpenGL.GL as GL
 from OpenGL.GL import *
+import math
 import numpy as np
 import dGraph.ui as dgui
 import dGraph.textures as dgt
@@ -158,7 +159,6 @@ class FrameBuffer(object):
             glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, self.depth())# Attach render buffer to depth buffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
         return frameBuffer
-
     def setup(self, width, height):
         ''' create the FBO and textures and setup all inputs '''
         if self._setup:
@@ -179,7 +179,6 @@ class FrameBuffer(object):
             sceneGraphSet.update(subimage.setup(width,height))
         self._setup = True
         return sceneGraphSet
-
     def render(self,resetFBO,mipLevel=0):
         ''' Renders the subimages to the frame buffers '''
         #print('%s entering render. %s'%(self.__class__, self._name))
@@ -190,6 +189,7 @@ class FrameBuffer(object):
                 #print('%s is clearing DEPTH AND COLOR'%self.name)
                 glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             for subimage, location in self.subimages:
+                glViewport(*(self.resolution*location).astype(int).flatten())
                 subimage.render(self, level)
             '''
             data = readFramebuffer(0, 0, self.resolution[0], self.resolution[1], GL_RGBA, GL_UNSIGNED_BYTE)

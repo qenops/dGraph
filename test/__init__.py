@@ -53,7 +53,7 @@ def arrowKey(window,scene,direction):
 
 def setup(loadScene):
     dgui.init()
-    renderGraph = dgr.RenderGraph('Test0_RG')
+    renderGraph = dgr.RenderGraph('Test_RG')
     monitors = dgui.get_monitors()
     display = renderGraph.add(dgui.Display('Last',monitors[-1]))
     offset = (0,0)
