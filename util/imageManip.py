@@ -14,7 +14,8 @@ import numpy as np
 
 def strToImg(text, scale=1.0,thick=1,color=(255,255,255),backCol=(0,0,0)):
     shape, baseLine = cv2.getTextSize(text,cv2.FONT_HERSHEY_PLAIN,scale,int(scale*2.5))
-    img = np.zeros((shape[1]+1,shape[0]+1,3))
+    
+    img = np.zeros((shape[1]*2,shape[0]+1,3))
     point = (0,shape[1])
     drawStr(img,point,text,scale,thick,color,backCol)
     return img

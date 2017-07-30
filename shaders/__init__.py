@@ -340,6 +340,7 @@ void main() {
 };
 '''
 
+
 class Image(Warp):
     ''' A shader displaying the indicated image '''
     def __init__(self, name, imageFile=None, imageData=None, **kwargs):
@@ -388,6 +389,22 @@ void main() {
     def beforeRender(self):
         setUniform(self.shader, 'locationRel', np.array(self.locationRel, np.float))
         setUniform(self.shader, 'sizeRel', np.array(self.sizeRel, np.float))
+
+class HFlip(Warp):
+    ''' Flips horizontally '''
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
+        self._fragmentShader = '''
+in vec2 fragTexCoord;
+uniform sampler2D inputTexture; 
+
+layout (location = 0) out vec4 FragColor;
+
+void main() {
+    vec2 texFlip = vec2(1 - fragTexCoord[0], fragTexCoord[1]);
+    FragColor = texture2D( inputTexture, texFlip );
+};
+'''
 
 
 class GaussMIPMap(Warp):
