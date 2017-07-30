@@ -268,6 +268,8 @@ class PolySurface(Shape):
             samplerCount += material.pushToShader(matName, self._shader, samplerCount)
         self._scene.pushLightsToShader(self._shader)
 
+        GL.glDisable(GL.GL_CULL_FACE)
+
         # bind our VAO and draw it
         GL.glBindVertexArray(self.vertexArray)
         GL.glDrawElements(GL.GL_TRIANGLES,self.numTris,GL.GL_UNSIGNED_INT, None)

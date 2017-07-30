@@ -401,7 +401,10 @@ uniform sampler2D inputTexture;
 layout (location = 0) out vec4 FragColor;
 
 void main() {
-    vec2 texFlip = vec2(1 - fragTexCoord[0], fragTexCoord[1]);
+    vec2 texFlip = vec2(0.5 - fragTexCoord.x, fragTexCoord.y);
+    if (fragTexCoord.x >= 0.5) {
+        texFlip.x = 0.5 + 0.5 - (fragTexCoord.x - 0.5);
+    }
     FragColor = texture2D( inputTexture, texFlip );
 };
 '''
