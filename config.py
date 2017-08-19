@@ -21,3 +21,16 @@ shaderHeader = '''
 '''
 
 maxFPS = 60
+
+ALIEN_MANUAL_IPD = [
+    -1.0,
+    -0.27,
+]
+ALIEN_MANUAL_TRANSLATE = [
+    [0, -2, -12],
+    [0, -2, -7],
+]
+ALIEN_MANUAL_SCALE = [
+    0.5,
+    0.53,
+]

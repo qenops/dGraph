@@ -48,8 +48,6 @@ def loadScene(renderGraph,file=None):
     cube.setTranslate(0,-0.5,-2)
     cube.setRotate(0,0,0)
 
-    
-
     # Tick
     camera = scene.add(dgc.Camera('scene', scene))
     camera.setResolution((renderGraph.width, renderGraph.height))
