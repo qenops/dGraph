@@ -26,7 +26,7 @@ WINDOWS = []
 # should look at glfw Monitor objects
 class Display(object):
     ''' A class that defines the physical properties of a display AKA a monitor'''
-    def __init__(self, name, monitor, bezel=None,location=(0.,0.,0.)):  # default to Samsung Note 3
+    def __init__(self, name, monitor, bezel=None,location=(0.,0.,0.)):
         self.name = name
         self.classifier = 'display'
         self.resolution, self.colorDepth, self.fps = [np.array(a) for a in fw.get_video_mode(monitor)]

@@ -44,6 +44,7 @@ def loadScene(renderGraph,file=None):
 
     # This guy has mtl and textures
     cube = scene.add(dgs.PolySurface('alien', scene, file = '%s/alien/alien.obj'%MODELDIR))
+    #cube = scene.add(dgs.PolySurface('alien', scene, file = '/playpen/git/PerceptualHMD/cad/alien.obj'))
     cube.setScale(0.8,0.8,0.8)
     cube.setTranslate(0,-0.5,-2)
     cube.setRotate(0,0,0)

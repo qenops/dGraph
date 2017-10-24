@@ -63,7 +63,7 @@ def find_joysticks():
 
 def get_joy_axes(joy):
     axes = glfw.get_joystick_axes(joy)
-    print(axes)
+    #print(axes)
     toReturn = [0.]*axes[1]
     for i in range(axes[1]):
         toReturn[i] = axes[0][i]
@@ -71,7 +71,7 @@ def get_joy_axes(joy):
 
 def get_joy_buttons(joy):
     buttons = glfw.get_joystick_buttons(joy)
-    print(buttons)
+    #print(buttons)
     toReturn = [0.]*buttons[1]
     for i in range(buttons[1]):
         toReturn[i] = buttons[0][i]

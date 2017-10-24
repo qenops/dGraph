@@ -67,9 +67,9 @@ __version__ = '1.0'
 
 import numpy as np
 from numpy.linalg import norm
+import scipy.ndimage as ndimage
 import itertools as it
 import os
-import cv2
 import dGraph.materials as dgm
 import dGraph.textures as dgt
 import OpenGL.GL as GL
@@ -249,7 +249,7 @@ def loadMtl(file):
     return materials
 
 def loadTexture(imgFile):
-    img = cv2.imread(imgFile)
+    img = ndimage.imread(imgFile)
     if img is None:
         return None
 
