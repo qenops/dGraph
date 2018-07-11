@@ -67,7 +67,6 @@ __version__ = '1.0'
 
 import numpy as np
 from numpy.linalg import norm
-import scipy.ndimage as ndimage
 import itertools as it
 import os
 import dGraph.materials as dgm
@@ -249,17 +248,14 @@ def loadMtl(file):
     return materials
 
 def loadTexture(imgFile):
-    img = ndimage.imread(imgFile)
+    img = dgt.loadImage(imgFile)
     if img is None:
         return None
-
     texture = dgt.createTexture(img,mipLevels=0,wrap=GL_REPEAT,filterMag=GL_LINEAR,filterMin=GL_LINEAR_MIPMAP_LINEAR)
     glBindTexture(GL_TEXTURE_2D, texture)
     GL.glGenerateMipmap(GL_TEXTURE_2D)
     glBindTexture(GL_TEXTURE_2D, 0)
-
     return texture
-
 
 def write(file, verts, uvs, normals, faceVerts, faceUvs, faceNormals ):
     ''' Write out an obj to a file '''
