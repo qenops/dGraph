@@ -56,7 +56,8 @@ def setup(loadScene):
     renderGraph = dgr.RenderGraph('Test_RG')
     monitors = dgui.get_monitors()
     display = renderGraph.add(dgui.Display('Last',monitors[-1]))
-    offset = (0,0)
+    #offset = (0,0)
+    offset = display.screenPosition
     mainWindow = renderGraph.add(dgui.open_window('Scene Graph Test', offset[0], offset[1], display.width, display.height))
     if not mainWindow:
         dgui.terminate()
